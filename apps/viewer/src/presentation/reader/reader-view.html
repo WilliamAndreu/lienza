@@ -1,0 +1,136 @@
+<div class="reader-shell flex h-dvh min-h-0 flex-col overflow-hidden">
+  <header class="reader-header z-30 flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:px-6">
+    <div class="flex min-w-0 items-center gap-4"><app-brand-mark />@if (vm.status()?.loaded) { <span class="reader-header-rule" aria-hidden="true"></span><div class="reader-document-context min-w-0">@if (activeVersion(); as active) { <strong class="block truncate" [title]="active.project.name">{{ active.project.name }}</strong><span class="block truncate">{{ 'common.version' | translate }} {{ active.version.number }} · {{ language.formatShortDate(active.version.uploadedAt) }}</span> } @else { <strong class="block truncate" [title]="vm.status()?.name">{{ vm.status()?.name }}</strong><span class="block truncate">{{ 'reader.localFile' | translate }}</span> }</div> }</div>
+    <nav class="reader-header-nav flex shrink-0 items-center gap-2 sm:gap-5" [attr.aria-label]="'reader.tools' | translate">
+      @if (vm.status()?.loaded) { <span class="mcp-state hidden md:inline-flex"><span class="status-dot" aria-hidden="true"></span>{{ 'reader.mcpActive' | translate }}</span><a routerLink="/theme" class="reader-nav-link reader-nav-link--theme">{{ 'common.theme' | translate }}</a> }
+      <button type="button" (click)="copyMcp()" class="reader-nav-link reader-copy-mcp hidden sm:inline-flex" [attr.aria-label]="'reader.copyMcpUrl' | translate">{{ (copied() ? 'reader.copied' : 'reader.copyMcp') | translate }}</button>
+      <a routerLink="/" class="reader-nav-link reader-nav-link--back"><span class="hidden sm:inline">{{ 'common.projects' | translate }}</span><span class="sm:hidden">{{ 'reader.archive' | translate }}</span><span aria-hidden="true">↗</span></a>
+      <app-language-selector />
+    </nav>
+  </header>
+
+  @if (vm.error()) {
+    <div role="alert" class="z-20 flex shrink-0 items-center justify-between gap-4 bg-[#fff0ed] px-4 py-2.5 text-xs text-[#a94535] sm:px-6">
+      <span>{{ vm.error() }}</span><button type="button" (click)="vm.dismissError()" class="font-bold" [attr.aria-label]="'reader.closeError' | translate">✕</button>
+    </div>
+  }
+
+  @if (!vm.status()?.loaded) {
+    <main class="reader-empty grid flex-1 place-items-center overflow-auto p-5 sm:p-8">
+      <div class="reader-empty-body"><span class="registration-mark" aria-hidden="true">＋</span><h1>{{ 'reader.emptyTitle' | translate }}</h1><p>{{ 'reader.emptyDescription' | translate }}</p><a routerLink="/">{{ 'reader.goArchive' | translate }} <span aria-hidden="true">↗</span></a></div>
+    </main>
+  } @else {
+    <div class="flex min-h-0 flex-1">
+      <aside class="panel-left flex min-h-0 w-full shrink-0 flex-col border-r border-[#e9e8eb] bg-white md:w-[250px] lg:w-[280px]" [class.mobile-hidden]="vm.mobilePanel() !== 'layers'">
+        <div class="border-b border-[#f0eff1] px-4 pb-4 pt-5">
+          <div class="mb-3 flex items-center justify-between"><h2 class="text-xs font-bold uppercase tracking-[.12em] text-[#848693]">{{ 'reader.explorer' | translate }}</h2><span class="rounded-full bg-[#f5f4f8] px-2 py-1 text-xs font-semibold tabular-nums text-[#90919b]">{{ vm.status()?.nodeCount }} {{ 'common.layers' | translate }}</span></div>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#a0a1ac]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>
+            <input type="search" class="h-9 w-full rounded-xl border border-[#e9e8ee] bg-[#fafafc] pl-9 pr-3 text-xs outline-none placeholder:text-[#aaabb4] focus:border-[#aa96f0]" [placeholder]="'reader.searchPlaceholder' | translate" [value]="vm.query()" (input)="vm.search($any($event.target).value)" [attr.aria-label]="'reader.searchLayers' | translate" />
+          </div>
+        </div>
+        <div class="flex gap-1 overflow-x-auto border-b border-[#f0eff1] px-3 py-3">
+          @for (page of vm.visiblePages(); track page.id) {
+            <button type="button" (click)="changePage(page.id)" class="page-tab max-w-32 min-h-11 shrink-0 truncate px-3 py-1.5 text-xs font-semibold md:min-h-9" [class.is-active]="vm.activePageId() === page.id">{{ page.name }}</button>
+          }
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+          @if (vm.query()) {
+            <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-[#a0a0aa]">{{ vm.searchResults().length }} {{ 'reader.results' | translate }}</p>
+            @for (layer of vm.searchResults(); track layer.id) { <app-layer-row [layer]="layer" [selectedId]="vm.selected()?.id ?? null" (choose)="vm.select($event)" (preview)="openLayer($event)" /> }
+          } @else {
+            @for (layer of vm.tree()?.children ?? []; track layer.id) { <app-layer-row [layer]="layer" [selectedId]="vm.selected()?.id ?? null" (choose)="vm.select($event)" (preview)="openLayer($event)" /> }
+          }
+        </div>
+        <div class="border-t border-[#eeeef0] px-4 py-3 text-xs leading-4 text-[#52595b]">{{ 'reader.doubleClick' | translate }}</div>
+      </aside>
+
+      <main class="canvas-panel relative min-w-0 flex-1 bg-white" [class.mobile-hidden]="vm.mobilePanel() !== 'canvas'">
+        <div class="canvas-toolbar pointer-events-none absolute left-3 right-3 top-3 z-20 flex flex-col gap-2 sm:left-5 sm:right-5 sm:top-5">
+          <div class="flex items-start justify-between gap-2">
+            <div class="canvas-label pointer-events-auto flex min-w-0 items-center gap-2 rounded-xl border border-[#e9e8ec] bg-white/95 px-3 py-2 shadow-[0_4px_14px_rgba(35,30,50,.05)] backdrop-blur-sm">
+              <span class="size-1.5 shrink-0 rounded-full bg-[#57579d]"></span><span class="max-w-36 truncate text-xs font-semibold text-[#3c3c48] sm:max-w-64">{{ vm.viewingLabel() }}{{ vm.previewId() === vm.activePageId() ? (' · ' + ('reader.fullPage' | translate)) : '' }}</span>
+              @if (focusedId()) { <span class="hidden rounded bg-[#e6e7f2] px-1.5 py-0.5 text-[9px] font-bold text-[#57579d] sm:inline">{{ 'reader.focus' | translate }}</span> }
+            </div>
+            <div class="zoom-tools pointer-events-auto flex shrink-0 items-center rounded-xl border border-[#e9e8ec] bg-white/95 p-1 shadow-[0_4px_14px_rgba(35,30,50,.05)] backdrop-blur-sm">
+              <button type="button" class="grid size-11 place-items-center rounded-lg text-[#747583] hover:bg-[#f5f3fa] md:size-8" (click)="zoomBy(1 / 1.2)" [attr.aria-label]="'reader.zoomOut' | translate">−</button>
+              <button type="button" class="min-h-11 min-w-12 px-1 text-xs font-bold tabular-nums text-[#555667] md:min-h-8" (click)="resetFocus()" [attr.aria-label]="'reader.fitCanvas' | translate">{{ (vm.zoom() * 100).toFixed(0) }}%</button>
+              <button type="button" class="grid size-11 place-items-center rounded-lg text-[#747583] hover:bg-[#f5f3fa] md:size-8" (click)="zoomBy(1.2)" [attr.aria-label]="'reader.zoomIn' | translate">+</button>
+            </div>
+          </div>
+          @if (vm.viewPath().length > 1 || focusedId() || mobileDetailStart()) {
+            <div class="flex min-w-0 items-center gap-2">
+              @if (vm.viewPath().length > 1) {
+                <nav class="reader-path pointer-events-auto flex min-w-0 items-center gap-1 overflow-x-auto rounded-xl border border-[#e9e8ec] bg-white/95 px-2 py-1.5 text-xs shadow-sm backdrop-blur-sm" [attr.aria-label]="'reader.designPath' | translate">
+                  @for (layer of vm.viewPath(); track layer.id) {
+                    @if (!$first) { <span class="shrink-0 text-[#b4b0bf]" aria-hidden="true">/</span> }
+                    @if ($last) { <span class="max-w-28 shrink-0 truncate px-1 font-semibold text-[#5f4eb2]" [title]="layer.name" aria-current="page">{{ layer.name }}</span> }
+                    @else { <button type="button" class="max-w-28 shrink-0 truncate rounded px-1 py-1 text-[#747583] hover:bg-[#f2eefe] hover:text-[#634bd2]" [title]="layer.name" (click)="navigateTo(layer.id)">{{ layer.name }}</button> }
+                  }
+                </nav>
+              }
+              @if (focusedId()) { <button type="button" class="pointer-events-auto shrink-0 rounded-xl border border-[#e9e8ec] bg-white/95 px-2.5 py-2 text-xs font-semibold text-[#4d4d86] shadow-sm hover:bg-[#f0f0f7]" (click)="resetFocus()" [attr.aria-label]="'reader.resetFraming' | translate">{{ 'reader.reset' | translate }}</button> }
+              @if (mobileDetailStart()) { <button type="button" class="pointer-events-auto shrink-0 rounded-xl border border-[#e9e8ec] bg-white/95 px-2.5 py-2 text-xs font-semibold text-[#4d4d86] shadow-sm hover:bg-[#f0f0f7]" (click)="resetFocus()">{{ 'reader.viewFullPage' | translate }}</button> }
+              @if (vm.previewId() !== vm.activePageId() && vm.activePageId(); as pageId) { <button type="button" class="pointer-events-auto shrink-0 rounded-xl border border-[#e9e8ec] bg-white/95 px-2.5 py-2 text-xs font-semibold text-[#4d4d86] shadow-sm hover:bg-[#f0f0f7]" (click)="viewPage(pageId)" [attr.aria-label]="'reader.viewFullPage' | translate"><span class="hidden sm:inline">{{ 'reader.fullPage' | translate }}</span><span class="sm:hidden">{{ 'reader.page' | translate }}</span></button> }
+            </div>
+          }
+        </div>
+        <div #canvasViewport class="canvas-viewport absolute inset-0 overflow-hidden bg-white" [style.background-color]="vm.canvasBackground()" [class.can-pan]="spaceHeld()" [class.is-panning]="dragging()" [attr.aria-label]="'reader.canvasOfDesign' | translate" tabindex="0" (click)="onCanvasClick()" (wheel)="onCanvasWheel($event)" (pointerdown)="onCanvasPointerDown($event)" (pointermove)="onCanvasPointerMove($event)" (pointerup)="onCanvasPointerUp($event)" (pointercancel)="onCanvasPointerUp($event)" (pointerenter)="overCanvas.set(true)" (pointerleave)="overCanvas.set(false)" (gesturestart)="onNativeGestureStart($event)" (gesturechange)="onNativeGesture($event)" (gestureend)="onNativeGestureEnd($event)">
+          @if (vm.previewUrl()) {
+              <div class="preview-artboard absolute left-0 top-0 origin-top-left" [style.width.px]="previewWidth()" [style.height.px]="previewHeight()" [style.transform]="'translate3d(' + vm.canvas().x + 'px,' + vm.canvas().y + 'px,0) scale(' + vm.canvas().zoom + ')'">
+                @if (vm.pagePreviewUrl(); as pageUrl) {
+                  <img class="pointer-events-none absolute left-0 top-0 block" [src]="pageUrl" [style.width.px]="pageWidth()" [style.height.px]="pageHeight()" [style.visibility]="vm.showingPage() && renderReady() ? 'visible' : 'hidden'" (load)="onPageImageLoad($event)" [attr.alt]="vm.showingPage() ? ('reader.fullPageAlt' | translate) : ''" draggable="false" />
+                }
+                @if (!vm.showingPage()) {
+                  <img class="block h-full w-full" [src]="vm.previewUrl()" [style.visibility]="renderReady() ? 'visible' : 'hidden'" (load)="onImageLoad($event)" [alt]="'reader.selectedAlt' | translate" draggable="false" />
+                }
+                <div class="absolute inset-0" [attr.aria-label]="'reader.selectElements' | translate">
+                  @if (renderReady()) {
+                    @for (area of vm.visibleHitAreas(); track area.id) { <button type="button" class="hit-area absolute" [ngStyle]="areaStyle(area)" [attr.aria-label]="'reader.selectLayer' | translate:{id: area.id}" (pointerenter)="onHitAreaPointerMove($event)" (pointermove)="onHitAreaPointerMove($event)" (pointerleave)="onHitAreaPointerLeave($event)" (click)="onHitAreaClick($event, area.id)" (dblclick)="onHitAreaDoubleClick($event, area.id)"></button> }
+                    @if (vm.selectedArea(); as area) { <div class="selection-outline pointer-events-none absolute border-[#57579d]" [ngStyle]="areaStyle(area)" [style.borderWidth.px]="1.5 / vm.zoom()"><span class="absolute left-[-1px] max-w-40 origin-bottom-left truncate rounded-t bg-[#57579d] px-1.5 py-0.5 text-[9px] font-semibold text-white" [style.top.px]="-20 / vm.zoom()" [style.transform]="'scale(' + (1 / vm.zoom()) + ')'">{{ vm.selected()?.name }}</span></div> }
+                  }
+                </div>
+              </div>
+          } @else { <div class="grid h-full place-items-center text-sm text-[#8e8e9b]">{{ 'reader.choosePage' | translate }}</div> }
+        </div>
+        <div class="canvas-hint pointer-events-none absolute bottom-5 left-1/2 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-[#e9e8ec] bg-white/95 px-4 py-2 text-xs font-medium text-[#8c8c98] shadow-sm lg:flex"><span class="size-1.5 rounded-full bg-[#7375ad]"></span> {{ 'reader.gestureHint' | translate }}</div>
+      </main>
+
+      <aside class="panel-right flex min-h-0 w-full shrink-0 flex-col border-l border-[#e9e8eb] bg-white md:w-[260px] lg:w-[290px]" [class.mobile-hidden]="vm.mobilePanel() !== 'inspect'" [class.inspector-collapsed]="inspectorCollapsed()">
+        <div class="inspector-heading border-b border-[#f0eff1] px-5 py-5"><div class="flex items-center justify-between"><h2 class="text-xs font-bold uppercase tracking-[.12em] text-[#848693]">{{ 'reader.inspector' | translate }}</h2><span class="rounded-full bg-[#f4f2fa] px-2 py-1 text-[9px] font-bold text-[#896edc]">{{ 'reader.design' | translate }}</span><button type="button" class="inspector-toggle" (click)="inspectorCollapsed.set(!inspectorCollapsed())" [attr.aria-label]="(inspectorCollapsed() ? 'reader.showInspector' : 'reader.hideInspector') | translate" [attr.title]="(inspectorCollapsed() ? 'reader.showInspector' : 'reader.hideInspector') | translate">{{ inspectorCollapsed() ? '‹' : '›' }}</button></div></div>
+        @if (vm.selected(); as node) {
+          <div class="inspector-content min-h-0 flex-1 overflow-y-auto">
+            <div class="border-b border-[#f0eff1] px-5 py-5"><span class="mb-1 block text-xs font-bold uppercase tracking-[.12em] text-[#52595b]">{{ node.type }}</span><h3 class="break-words text-base font-[720] tracking-[-.02em]">{{ node.name }}</h3><p class="mt-1 font-mono text-xs text-[#52595b]">ID {{ node.id }}</p></div>
+            <div class="border-b border-[#f0eff1] px-5 py-4"><button type="button" class="w-full rounded-xl border border-[#c9c7c4] bg-[#f0f0f7] px-3 py-2.5 text-xs font-semibold text-[#57579d] hover:bg-[#dcddf3] disabled:cursor-default disabled:opacity-50" [disabled]="vm.previewId() === node.id" (click)="isolateSelected()">{{ (vm.previewId() === node.id ? 'reader.isolated' : 'reader.isolate') | translate }}</button><p class="mt-2 text-xs leading-4 text-[#52595b]">{{ 'reader.isolateHelp' | translate }}</p></div>
+            <section class="border-b border-[#f0eff1] px-5 py-5"><h4 class="mb-4 text-xs font-bold text-[#3d3e4c]">{{ 'common.geometry' | translate }}</h4><div class="grid grid-cols-2 gap-2">
+              <div class="property-cell"><span>X</span><strong>{{ node.x?.toFixed(1) ?? '—' }}</strong></div><div class="property-cell"><span>Y</span><strong>{{ node.y?.toFixed(1) ?? '—' }}</strong></div>
+              <div class="property-cell"><span>W</span><strong>{{ node.width?.toFixed(1) ?? '—' }}</strong></div><div class="property-cell"><span>H</span><strong>{{ node.height?.toFixed(1) ?? '—' }}</strong></div>
+            </div></section>
+            @if (node.typography; as font) { <section class="border-b border-[#f0eff1] px-5 py-5"><h4 class="mb-3 text-xs font-bold text-[#3d3e4c]">{{ 'common.typography' | translate }}</h4><div class="space-y-2 text-xs"><div class="flex justify-between gap-3"><span class="text-[#52595b]">{{ 'reader.designFamily' | translate }}</span><strong class="text-right font-semibold">{{ font.family }}</strong></div><div class="flex justify-between gap-3"><span class="text-[#52595b]">{{ 'reader.sizeWeight' | translate }}</span><strong class="font-semibold">{{ font.size }} px · {{ font.weight }}</strong></div>@if (font.substituted) { <p class="rounded-lg bg-[#fff7e8] px-2.5 py-2 leading-4 text-[#986b1d]">{{ 'reader.fontFallback' | translate:{rendered: font.renderedFamily, declared: font.family} }}</p> }</div></section> }
+            @if (node.text) { <section class="border-b border-[#f0eff1] px-5 py-5"><h4 class="mb-3 text-xs font-bold text-[#3d3e4c]">{{ 'reader.textContent' | translate }}</h4><p class="rounded-xl bg-[#f7f7fa] p-3 text-xs leading-5 text-[#5d5e6a]">{{ clampText(node.text) }}</p></section> }
+            @if (node.fills.length) { <section class="border-b border-[#f0eff1] px-5 py-5"><h4 class="mb-3 text-xs font-bold text-[#3d3e4c]">{{ 'reader.fills' | translate }}</h4>@for (fill of node.fills; track $index) { <div class="mb-2 flex items-center gap-2.5 rounded-xl border border-[#eeeef1] p-2"><span class="size-7 rounded-lg border border-black/5" [style.background]="paintColor(fill) ?? '#efeff2'"></span><span class="text-xs font-semibold text-[#575865]">{{ paintColor(fill) ?? ('reader.imageGradient' | translate) }}</span></div> }</section> }
+            <section class="px-5 py-5"><h4 class="mb-3 text-xs font-bold text-[#3d3e4c]">{{ 'reader.forAgents' | translate }}</h4><p class="text-xs leading-5 text-[#52595b]">{{ 'reader.mcpHelp' | translate }} <code class="rounded bg-[#e6e7f2] px-1 text-[#57579d]">get_selection</code> {{ 'reader.mcpServer' | translate }}</p><button type="button" (click)="copyMcp()" class="mt-3 w-full rounded-xl border border-[#c9c7c4] bg-[#f0f0f7] py-2 text-xs font-semibold text-[#57579d]">{{ (copied() ? 'reader.urlCopied' : 'reader.copyMcpArrow') | translate }}</button></section>
+          </div>
+        } @else {
+          <div class="inspector-content flex flex-1 flex-col items-center justify-center px-7 text-center"><div class="mb-4 grid size-14 place-items-center border border-[var(--fig-hairline)] text-2xl text-[var(--fig-ink)]" aria-hidden="true">＋</div><h3 class="text-sm font-semibold text-[#454652]">{{ 'reader.noneSelected' | translate }}</h3><p class="mt-2 text-xs leading-5 text-[#52595b]">{{ 'reader.selectHelp' | translate }}</p></div>
+        }
+        <div class="inspector-content border-t border-[#f0eff1] px-5 py-3 text-xs text-[#52595b]">{{ 'reader.localData' | translate }}</div>
+      </aside>
+    </div>
+    @if (vm.selected(); as node) {
+      @if (vm.mobilePanel() !== 'inspect') {
+        <div class="mobile-selection-peek md:hidden" role="status">
+          <div class="min-w-0"><span>{{ node.type }}</span><strong [title]="node.name">{{ node.name }}</strong><small>{{ node.width?.toFixed(0) ?? '—' }} × {{ node.height?.toFixed(0) ?? '—' }} px</small></div>
+          <button type="button" (click)="vm.mobilePanel.set('inspect')">{{ 'reader.viewDetails' | translate }} <span aria-hidden="true">↗</span></button>
+        </div>
+      }
+    }
+    <nav class="mobile-nav flex h-14 shrink-0 items-stretch md:hidden" [attr.aria-label]="'reader.panels' | translate">
+      <button type="button" class="flex flex-1 items-center justify-center text-xs font-semibold" [class.is-active]="vm.mobilePanel() === 'layers'" (click)="vm.mobilePanel.set('layers')">{{ 'common.layersTitle' | translate }}</button>
+      <button type="button" class="flex flex-1 items-center justify-center text-xs font-semibold" [class.is-active]="vm.mobilePanel() === 'canvas'" (click)="vm.mobilePanel.set('canvas')">{{ 'reader.canvas' | translate }}</button>
+      <button type="button" class="flex flex-1 items-center justify-center text-xs font-semibold" [class.is-active]="vm.mobilePanel() === 'inspect'" (click)="vm.mobilePanel.set('inspect')">{{ 'reader.inspector' | translate }}</button>
+    </nav>
+  }
+
+  @if (vm.loading()) { <div class="absolute inset-0 z-50 grid place-items-center bg-white/80 backdrop-blur-[2px]" role="status"><div class="flex items-center gap-3 rounded-2xl border border-[#e9e4f5] bg-white px-5 py-4 text-sm font-semibold text-[#5c4db0] shadow-xl"><span class="loading-ring size-5 rounded-full border-2 border-[#dcd2f9] border-t-[#57579d]"></span>{{ 'reader.loadingFig' | translate }}</div></div> }
+</div>

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="720" viewBox="0 0 1600 720" role="img" aria-labelledby="title description">
+  <title id="title">Lienza: from design to context</title>
+  <desc id="description">An editorial cover for Lienza. A reader diagram shows layers, canvas, selection, inspector, and the MCP connection.</desc>
+  <defs>
+    <pattern id="canvas-dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#c9c7c4"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="720" fill="#f5f4f6"/>
+  <path d="M64 104H1536M64 626H1536" stroke="#c9c7c4" stroke-width="2"/>
+  <path d="M64 81V56h25M1511 56h25v25M64 650v25h25M1511 675h25v-25" fill="none" stroke="#16181a" stroke-width="2"/>
+
+  <g transform="translate(99 58)" fill="none" stroke="#16181a" stroke-width="1.8">
+    <path d="M3 11V3h8M21 3h8v8M29 21v8h-8M11 29H3v-8"/>
+    <path d="M10 16h12M16 10v12"/>
+    <circle cx="16" cy="16" r="3.25" fill="#dcddf3" stroke-width="1.5"/>
+  </g>
+  <text x="147" y="85" fill="#16181a" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="31" font-weight="650" letter-spacing="-1.2">Lienza<tspan fill="#7375ad">.</tspan></text>
+  <text x="1490" y="80" text-anchor="end" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="2">LOCAL DESIGN READER</text>
+
+  <text x="80" y="248" fill="#16181a" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="88" font-weight="400" letter-spacing="-4">From design</text>
+  <text x="80" y="341" fill="#57579d" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="88" font-weight="400" letter-spacing="-4">to context.</text>
+  <path d="M84 378h78" stroke="#57579d" stroke-width="4"/>
+  <text x="84" y="431" fill="#52595b" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="29">Explore local .fig files and share precise</text>
+  <text x="84" y="470" fill="#52595b" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="29">selections with your agents through MCP.</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" letter-spacing="1.5" fill="#16181a">
+    <text x="84" y="564">.FIG</text>
+    <text x="240" y="564">LAYERS</text>
+    <text x="420" y="564">MCP</text>
+  </g>
+  <path d="M152 558h66m102 0h74" fill="none" stroke="#7375ad" stroke-width="2"/>
+  <path d="m211 551 8 7-8 7m176-14 8 7-8 7" fill="none" stroke="#7375ad" stroke-width="2"/>
+
+  <rect x="766" y="130" width="770" height="472" fill="#ffffff" stroke="#16181a" stroke-width="2"/>
+  <rect x="766" y="130" width="770" height="54" fill="#faf9fa"/>
+  <path d="M766 184h770M963 184v418M1300 184v418" stroke="#c9c7c4" stroke-width="2"/>
+  <g fill="none" stroke="#16181a" stroke-width="1.8">
+    <path d="M788 154v-12h12m12 0h12v12m0 12v12h-12m-12 0h-12v-12"/>
+    <path d="M795 160h22m-11-11v22"/>
+    <circle cx="806" cy="160" r="4" fill="#dcddf3"/>
+  </g>
+  <text x="844" y="165" fill="#16181a" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="22" font-weight="600">Project.fig</text>
+  <circle cx="1414" cy="158" r="5" fill="#517d64"/>
+  <text x="1520" y="165" text-anchor="end" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15">MCP READY</text>
+
+  <text x="790" y="224" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5">LAYERS</text>
+  <path d="M786 241h160" stroke="#c9c7c4"/>
+  <g font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="18" fill="#52595b">
+    <text x="791" y="281">▾  Page</text>
+    <text x="813" y="323">▾  Screen</text>
+    <text x="833" y="368" fill="#57579d" font-weight="600">Header</text>
+    <text x="833" y="412">Content</text>
+    <text x="833" y="456">Image</text>
+  </g>
+  <rect x="790" y="339" width="157" height="43" fill="#dcddf3"/>
+  <path d="M790 339v43" stroke="#57579d" stroke-width="4"/>
+  <text x="812" y="367" fill="#57579d" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="18" font-weight="600">Header</text>
+
+  <rect x="965" y="186" width="333" height="414" fill="#f5f4f6"/>
+  <rect x="965" y="186" width="333" height="414" fill="url(#canvas-dots)"/>
+  <rect x="998" y="239" width="266" height="307" fill="#ffffff" stroke="#c9c7c4"/>
+  <rect x="1018" y="272" width="226" height="76" fill="#eef3ef" stroke="#57579d" stroke-width="2.5"/>
+  <text x="1019" y="261" fill="#57579d" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">HEADER</text>
+  <path d="M1018 267v10m226-10v10m-226 66v10m226-10v10" stroke="#57579d" stroke-width="2.5"/>
+  <circle cx="1047" cy="310" r="13" fill="#dcddf3" stroke="#57579d" stroke-width="1.8"/>
+  <path d="M1071 300h112m-112 17h84" stroke="#16181a" stroke-linecap="square" stroke-width="7"/>
+  <rect x="1018" y="378" width="107" height="84" fill="#dcddf3"/>
+  <rect x="1137" y="378" width="107" height="84" fill="#eef3ef"/>
+  <path d="M1018 483h178m-178 18h226m-226 18h143" stroke="#c9c7c4" stroke-width="7"/>
+
+  <text x="1324" y="224" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.5">SELECTION</text>
+  <path d="M1319 241h196" stroke="#c9c7c4"/>
+  <text x="1324" y="281" fill="#16181a" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="23" font-weight="600">Header</text>
+  <text x="1324" y="324" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">SOURCE  .FIG</text>
+  <path d="M1324 341h187" stroke="#c9c7c4"/>
+  <text x="1324" y="377" fill="#52595b" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="17">Width</text>
+  <text x="1511" y="377" text-anchor="end" fill="#16181a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">226</text>
+  <text x="1324" y="415" fill="#52595b" font-family="Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="17">Height</text>
+  <text x="1511" y="415" text-anchor="end" fill="#16181a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">76</text>
+  <path d="M1324 439h187" stroke="#c9c7c4"/>
+  <rect x="1324" y="465" width="22" height="22" fill="#eef3ef" stroke="#c9c7c4"/>
+  <text x="1360" y="482" fill="#16181a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">#EEF3EF</text>
+  <path d="M1324 513h187" stroke="#c9c7c4"/>
+  <text x="1324" y="547" fill="#57579d" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">ID · 01:24</text>
+
+  <text x="108" y="662" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.2">LOCAL FILES  /  VISUAL INSPECTION  /  CONTEXT FOR AGENTS</text>
+  <text x="1490" y="662" text-anchor="end" fill="#52595b" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="1.2">LIENZA  —  MVP</text>
+</svg>

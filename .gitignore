@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+.DS_Store
+*.log
+*.fig
+/apps/server/data/
+/preview*.png
+/.impeccable/
+/apps/viewer/out-tsc/

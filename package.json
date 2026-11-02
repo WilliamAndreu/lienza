@@ -1,0 +1,16 @@
+{
+  "name": "figma-reader-mvp",
+  "description": "Explore local Figma .fig files, inspect layers and design tokens, and share precise context with AI agents through MCP.",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -k -n server,viewer -c cyan,magenta \"npm run dev -w @figma-reader/server\" \"npm run start -w figma-reader\"",
+    "build": "npm run build -w @figma-reader/fig-engine && npm run build -w @figma-reader/server && npm run build -w figma-reader",
+    "test": "npm run test -w @figma-reader/server && npm run test -w figma-reader -- --watch=false",
+    "start": "npm run start -w @figma-reader/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "~5.9.2"
+  }
+}

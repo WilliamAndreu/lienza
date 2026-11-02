@@ -1,0 +1,98 @@
+<div class="library-shell min-h-dvh text-[var(--fig-ink)]">
+  <header class="site-header">
+    <div class="mx-auto flex w-full max-w-[1520px] items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-12">
+      <app-brand-mark />
+      <nav class="flex items-center gap-3 sm:gap-7" [attr.aria-label]="'library.nav' | translate">
+        <span class="hidden text-[11px] text-[var(--fig-muted)] sm:inline">{{ 'library.subtitle' | translate }}</span>
+        <a class="header-link" href="#importar">{{ 'library.addFile' | translate }} <span aria-hidden="true">↗</span></a>
+      <app-language-selector />
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto w-full max-w-[1520px] px-5 pb-24 sm:px-8 lg:px-12">
+    <section class="intro-grid" aria-labelledby="library-title">
+      <div>
+        <h1 id="library-title">{{ 'library.titleFirst' | translate }}<br><em>{{ 'library.titleSecond' | translate }}</em></h1>
+      </div>
+      <div class="intro-aside">
+        <p>{{ 'library.intro' | translate }}</p>
+        <div class="intro-status"><span class="status-dot" aria-hidden="true"></span><span>{{ 'library.mcpAvailable' | translate }}</span><span class="intro-count">{{ catalog()?.projects?.length ?? '—' }} {{ (catalog()?.projects?.length === 1 ? 'common.project' : 'common.projectPlural') | translate }}</span></div>
+      </div>
+    </section>
+
+    @if (error()) { <div role="alert" class="library-message library-message--error"><span>{{ error() }}</span><button type="button" (click)="dismissMessages()" [attr.aria-label]="'library.closeError' | translate">{{ 'common.close' | translate }}</button></div> }
+    @if (notice()) { <div role="status" class="library-message"><span>{{ notice() }}</span><button type="button" (click)="dismissMessages()" [attr.aria-label]="'library.closeMessage' | translate">{{ 'common.close' | translate }}</button></div> }
+
+    <section class="project-index" aria-labelledby="projects-title">
+      <div class="index-heading"><h2 id="projects-title" tabindex="-1">{{ 'common.projects' | translate }}</h2><span>{{ catalog()?.projects?.length ?? '—' }} {{ 'library.inArchive' | translate }}</span></div>
+      @if (!catalog()) { <div class="library-loading" role="status">{{ 'library.loading' | translate }}</div> }
+      @else if (!catalog()!.projects.length) {
+        <div class="library-empty"><span class="registration-mark" aria-hidden="true">＋</span><h3>{{ 'library.emptyTitle' | translate }}</h3><p>{{ 'library.emptyDescription' | translate }}</p><a href="#importar" class="dark-action">{{ 'library.importDesign' | translate }} <span aria-hidden="true">↗</span></a></div>
+      }
+      @else {
+        <div class="plate-list">
+          @for (project of catalog()!.projects; track project.id; let projectIndex = $index) {
+            <article class="design-plate">
+              <div class="plate-topline"><span class="plate-index">FIG {{ (projectIndex + 1).toString().padStart(2, '0') }}</span><span class="plate-version-count">{{ 'common.project' | translate }} · {{ project.versions.length }} {{ (project.versions.length === 1 ? 'common.version' : 'common.versions') | translate | lowercase }}</span></div>
+              <div class="plate-body">
+                <div class="plate-image-wrap">
+                  @if (project.versions[0]; as latest) { <img [src]="thumbnailUrl(project, latest)" [alt]="'library.previewOf' | translate:{name: project.name}" loading="lazy" /> }
+                  <span class="plate-corner plate-corner--tl" aria-hidden="true"></span><span class="plate-corner plate-corner--tr" aria-hidden="true"></span><span class="plate-corner plate-corner--bl" aria-hidden="true"></span><span class="plate-corner plate-corner--br" aria-hidden="true"></span>
+                </div>
+                <div class="plate-info">
+                  <div><span class="plate-eyeline">{{ 'library.figmaFile' | translate }} / {{ project.versions[0]?.fileName }}</span><h3 [title]="project.name">{{ project.name }}</h3></div>
+                  <div class="plate-current">
+                    <span class="plate-current-label">{{ 'library.latestDelivery' | translate }}</span>
+                    <strong>v{{ project.versions[0]?.number }}</strong>
+                    <span>{{ formatDate(project.versions[0]!.uploadedAt) }}</span>
+                  </div>
+                  <div class="plate-primary-actions">
+                    <button type="button" class="dark-action" [disabled]="!!busy()" (click)="open(project, project.versions[0]!)">{{ (busy() === 'open-' + project.versions[0]?.id ? 'library.opening' : 'library.openLatest') | translate }} <span aria-hidden="true">↗</span></button>
+                    <label class="text-action" [class.pointer-events-none]="!!busy()">+ {{ 'library.uploadVersion' | translate }}<input class="sr-only" type="file" accept=".fig" [disabled]="!!busy()" [attr.aria-label]="'library.uploadVersionOf' | translate:{name: project.name}" (change)="addVersion(project, $event)" /></label>
+                  </div>
+                </div>
+              </div>
+              <div class="version-list" [attr.aria-label]="'library.versionsOf' | translate:{name: project.name}">
+                @for (version of project.versions; track version.id; let first = $first) {
+                  <div class="version-row">
+                    <span class="version-number">{{ version.number.toString().padStart(2, '0') }}</span>
+                    <div class="version-detail"><strong>{{ 'common.version' | translate }} {{ version.number }} @if (first) { <span class="latest-indicator">{{ 'library.latest' | translate }}</span> } @if (isActive(project.id, version.id)) { <span class="active-indicator">{{ 'library.inMcp' | translate }}</span> }</strong><span>{{ formatDate(version.uploadedAt) }} · {{ formatSize(version.size) }}</span></div>
+                    <div class="version-actions">@if (isActive(project.id, version.id)) { <a routerLink="/theme" class="version-link">{{ 'common.theme' | translate }}</a> }@if (!first) { <button type="button" class="version-link version-link--open" [disabled]="!!busy()" (click)="open(project, version)">{{ (busy() === 'open-' + version.id ? 'library.opening' : 'library.openVersion') | translate }} <span aria-hidden="true">↗</span></button> }</div>
+                  </div>
+                }
+              </div>
+              <div class="project-maintenance">
+                <div class="project-maintenance-actions">
+                  @if (project.versions.length > 1) { <button type="button" [id]="'prune-project-' + project.id" [disabled]="!!busy()" (click)="confirm(project.id, 'prune')">{{ 'library.keepLatest' | translate }}</button> }
+                  <button type="button" [id]="'delete-project-' + project.id" class="project-delete-trigger" [disabled]="!!busy()" (click)="confirm(project.id, 'delete')">{{ 'library.deleteProject' | translate }}</button>
+                </div>
+                @if (confirmAction()?.projectId === project.id) {
+                  <div class="project-confirm" role="alert">
+                    @if (confirmAction()?.type === 'delete') {
+                      <div><strong>{{ 'library.confirmDeleteProject' | translate:{name: project.name} }}</strong><span>{{ (project.versions.length === 1 ? 'library.deleteProjectOne' : 'library.deleteProjectMany') | translate:{count: project.versions.length} }}</span>@if (catalog()?.activeProjectId === project.id) { <span>{{ 'library.deleteActiveProject' | translate }}</span> }</div>
+                      <div class="project-confirm-actions"><button type="button" (click)="cancelConfirmation(project.id, 'delete')">{{ 'library.cancel' | translate }}</button><button type="button" class="project-confirm-delete" [disabled]="!!busy()" (click)="deleteProject(project)">{{ (busy() === project.id ? 'library.deletingProject' : 'library.confirmDeleteButton') | translate }}</button></div>
+                    } @else {
+                      <div><strong>{{ (project.versions.length === 2 ? 'library.deleteOne' : 'library.deletePrevious') | translate:{count: project.versions.length - 1} }}</strong></div>
+                      <div class="project-confirm-actions"><button type="button" (click)="cancelConfirmation(project.id, 'prune')">{{ 'library.cancel' | translate }}</button><button type="button" class="project-confirm-delete" [disabled]="!!busy()" (click)="keepLatest(project)">{{ 'library.deleteOld' | translate }}</button></div>
+                    }
+                  </div>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+
+    <section id="importar" class="import-section" aria-labelledby="new-project-title">
+      <div class="import-intro"><span class="registration-mark" aria-hidden="true">＋</span><h2 id="new-project-title">{{ 'library.addDesign' | translate }}</h2><p>{{ 'library.uploadDescription' | translate }}</p></div>
+      <form class="import-form" (submit)="$event.preventDefault(); createProject()">
+        <label><span>{{ 'library.projectName' | translate }}</span><input type="text" maxlength="100" [placeholder]="'library.designName' | translate" [value]="projectName()" (input)="projectName.set($any($event.target).value)" required /></label>
+        <label class="file-picker"><span>{{ 'library.figFile' | translate }}</span><span class="file-picker-surface">{{ newFile()?.name ?? ('library.chooseFig' | translate) }} <span aria-hidden="true">↗</span></span><input id="new-project-file" class="sr-only" type="file" accept=".fig" (change)="chooseNewFile($event)" [attr.aria-label]="'library.newProjectFile' | translate" /></label>
+        <button type="submit" class="dark-action" [disabled]="!!busy()">{{ (busy() === 'create' ? 'library.uploading' : 'library.createProject') | translate }} <span aria-hidden="true">↗</span></button>
+      </form>
+    </section>
+  </main>
+  <footer class="library-footer"><span>{{ 'library.footerLeft' | translate }}</span><span>{{ 'library.footerRight' | translate }}</span></footer>
+</div>
