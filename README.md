@@ -43,7 +43,7 @@ With Docker Desktop or another running Docker daemon:
 docker compose up --build -d
 ```
 
-Open [http://localhost:4200](http://localhost:4200). The MCP endpoint is `http://127.0.0.1:3210/mcp`. Nginx serves the Angular viewer and forwards `/api` and `/mcp` to the same Node process, so canvas selection and MCP state stay in sync.
+Open [http://localhost:4200](http://localhost:4200). The MCP endpoint for clients on the same computer is `http://localhost:3210/mcp`. Nginx serves the Angular viewer and forwards `/api` and `/mcp` to the same Node process, so canvas selection and MCP state stay in sync.
 
 A fresh Docker volume starts with an **empty project library**. The `lienza-projects` volume is separate from `apps/server/data/projects`, which is used by the local npm workflow. Uploaded versions survive `docker compose down` and rebuilds. `docker compose down -v` also deletes the volume and its projects.
 
@@ -53,7 +53,7 @@ If ports 4200 or 3210 are already in use:
 VIEWER_PORT=14200 MCP_PORT=13210 docker compose up --build -d
 ```
 
-Then open `http://localhost:14200` and connect the MCP client to `http://127.0.0.1:13210/mcp`. Use `docker compose ps` to inspect the services, `docker compose down` to stop them, and `docker compose up --build -d` after code changes.
+Then open `http://localhost:14200` and connect the MCP client to `http://localhost:13210/mcp`. Use `docker compose ps` to inspect the services, `docker compose down` to stop them, and `docker compose up --build -d` after code changes.
 
 ### Prebuilt Docker images
 
@@ -69,7 +69,7 @@ This pulls the latest `server` and `viewer` images for your CPU architecture, in
 LIENZA_VERSION=v0.1.0 VIEWER_PORT=14200 MCP_PORT=13210 docker compose -f compose.prebuilt.yaml up -d
 ```
 
-The viewer is at `http://localhost:4200` by default; MCP is at `http://127.0.0.1:3210/mcp`. The named volume begins empty and keeps uploaded projects across container updates. Run `docker compose -f compose.prebuilt.yaml pull && docker compose -f compose.prebuilt.yaml up -d` to update to the newest images.
+The viewer is at `http://localhost:4200` by default; MCP is at `http://localhost:3210/mcp`. The named volume begins empty and keeps uploaded projects across container updates. Run `docker compose -f compose.prebuilt.yaml pull && docker compose -f compose.prebuilt.yaml up -d` to update to the newest images.
 
 Maintainers publish both images to GHCR by pushing a version tag such as `v0.1.0`. The workflow publishes that tag and `latest` for `linux/amd64` and `linux/arm64`. New GHCR packages may initially be private; set both package visibilities to **Public** in GitHub before offering anonymous pulls.
 
@@ -83,11 +83,11 @@ The project library displays the thumbnail embedded in each `.fig` version. Thum
 
 ## Connect an agent
 
-The MCP server uses Streamable HTTP at `http://127.0.0.1:3210/mcp`. With current Codex and Claude Code CLIs:
+The MCP server uses Streamable HTTP at `http://localhost:3210/mcp`. `localhost` always refers to the computer running the MCP client; it is not a machine-specific IP address. With current Codex and Claude Code CLIs:
 
 ```bash
-codex mcp add lienza --url http://127.0.0.1:3210/mcp
-claude mcp add --transport http lienza http://127.0.0.1:3210/mcp
+codex mcp add lienza --url http://localhost:3210/mcp
+claude mcp add --transport http lienza http://localhost:3210/mcp
 ```
 
 Available tools: `get_document_status`, `get_selection`, `list_layers`, `search_nodes`, `get_node_context`, `get_implementation_context`, `list_components`, `get_image_asset`, `render_node`, `get_node_image`, and `get_theme`.
