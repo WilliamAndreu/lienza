@@ -55,6 +55,24 @@ VIEWER_PORT=14200 MCP_PORT=13210 docker compose up --build -d
 
 Then open `http://localhost:14200` and connect the MCP client to `http://127.0.0.1:13210/mcp`. Use `docker compose ps` to inspect the services, `docker compose down` to stop them, and `docker compose up --build -d` after code changes.
 
+### Prebuilt Docker images
+
+Once the GitHub Container Registry packages are public, deploy without cloning or building the source. Download [`compose.prebuilt.yaml`](compose.prebuilt.yaml) and run it in an empty directory:
+
+```bash
+docker compose -f compose.prebuilt.yaml up -d
+```
+
+This pulls the latest `server` and `viewer` images for your CPU architecture, including `linux/arm64` on M1 and later Macs and `linux/amd64` on Intel/AMD machines. To use a specific release or different local ports:
+
+```bash
+LIENZA_VERSION=v0.1.0 VIEWER_PORT=14200 MCP_PORT=13210 docker compose -f compose.prebuilt.yaml up -d
+```
+
+The viewer is at `http://localhost:4200` by default; MCP is at `http://127.0.0.1:3210/mcp`. The named volume begins empty and keeps uploaded projects across container updates. Run `docker compose -f compose.prebuilt.yaml pull && docker compose -f compose.prebuilt.yaml up -d` to update to the newest images.
+
+Maintainers publish both images to GHCR by pushing a version tag such as `v0.1.0`. The workflow publishes that tag and `latest` for `linux/amd64` and `linux/arm64`. New GHCR packages may initially be private; set both package visibilities to **Public** in GitHub before offering anonymous pulls.
+
 ### Storage and versions
 
 The local npm workflow stores projects in `apps/server/data/projects`. Set `FIGMA_LIBRARY_DIR=/path/to/library` to choose another directory. `FIGMA_FILE` seeds a project only when no catalog exists; deleting the final project does not import it again on restart. Each version stores its file, number, and actual upload time.
