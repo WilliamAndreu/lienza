@@ -106,8 +106,9 @@ export async function registerHttpRoutes(app: FastifyInstance, workspace: Worksp
       || (maxHeight !== undefined && (!Number.isInteger(maxHeight) || maxHeight < 100 || maxHeight > 1600))) {
       throw new Error('maxWidth and maxHeight must be between 100 and 1600');
     }
+    // Always fit within 1600 px: at full size, memory grows with the page's pixel area and can exhaust the machine.
     const rendered = await workspace.screenshot((request.params as { id: string }).id,
-      maxWidth || maxHeight ? { maxWidth: maxWidth ?? 1600, maxHeight: maxHeight ?? 1600 } : undefined);
+      { maxWidth: maxWidth ?? 1600, maxHeight: maxHeight ?? 1600 });
     reply.type('image/png').header('Cache-Control', 'no-store');
     return Buffer.from(rendered.base64, 'base64');
   });

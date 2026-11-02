@@ -3,6 +3,7 @@
 **/.angular
 .git
 .codex
+.claude
 .agents
 .impeccable
 .DS_Store

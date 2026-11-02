@@ -5,9 +5,11 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "concurrently -k -n server,viewer -c cyan,magenta \"npm run dev -w @figma-reader/server\" \"npm run start -w figma-reader\"",
-    "build": "npm run build -w @figma-reader/fig-engine && npm run build -w @figma-reader/server && npm run build -w figma-reader",
-    "test": "npm run test -w @figma-reader/server && npm run test -w figma-reader -- --watch=false",
-    "start": "npm run start -w @figma-reader/server"
+    "build": "npm run build -w @figma-reader/fig-engine && npm run build -w @figma-reader/server && npm run build -w @figma-reader/cli && npm run build -w figma-reader",
+    "test": "npm run test -w @figma-reader/server && npm run test -w @figma-reader/cli && npm run test -w figma-reader -- --watch=false",
+    "start": "npm run start -w @figma-reader/server",
+    "lienza": "node apps/cli/dist/main.js",
+    "cli": "node apps/cli/dist/main.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

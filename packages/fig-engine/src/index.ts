@@ -13,6 +13,9 @@ import type { TransformMatrix } from './renderer/render-types.js';
 
 export type { FigNode, SceneNode } from './parser/types.js';
 export type { ImageStore } from './parser/fig-reader.js';
+// Lets dependents emit declarations for values whose inferred types use these shapes.
+export type * from './parser/types.js';
+export type * from './theme/analyze-theme.js';
 export { formatGUID } from './parser/kiwi-parser.js';
 export { resolveFontFamily } from './font-catalog.js';
 export { paintToImageHash, detectImageFormat, getMimeType } from './renderer/paint-utils.js';
@@ -130,7 +133,7 @@ export function renderFigNode(file: LoadedFig, nodeId: string, options: { includ
   return { ...rendered, svg: prepared.svg };
 }
 
-export async function screenshotFigNode(file: LoadedFig, nodeId: string, options: { pixelPerfect?: boolean; maxWidth?: number; maxHeight?: number } = { pixelPerfect: true }) {
+export async function screenshotFigNode(file: LoadedFig, nodeId: string, options: { pixelPerfect?: boolean; maxWidth?: number; maxHeight?: number; scale?: number } = { pixelPerfect: true }) {
   const rendered = renderFigNode(file, nodeId);
   if (!rendered.svg) throw new Error('The node has no visible content');
   const prepared = prepareSvgFonts(rendered.svg);

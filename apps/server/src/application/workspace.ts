@@ -211,7 +211,9 @@ export class Workspace {
 
   asset(hash: string) { return imageAsset(this.requireFile(), hash); }
 
-  components(limit = 100) {
+  assetHashes() { return this.requireFile().images.listHashes(); }
+
+  components(limit = 100, offset = 0) {
     const file = this.requireFile();
     const entries = [...this.componentCounts.entries()]
       .map(([id, instanceCount]) => {
@@ -222,10 +224,12 @@ export class Workspace {
           componentKey: typeof componentKey === 'string' ? componentKey : null };
       })
       .sort((a, b) => b.instanceCount - a.instanceCount);
-    return { total: entries.length, components: entries.slice(0, Math.max(1, Math.min(limit, 200))) };
+    const safeOffset = Math.max(0, Math.floor(offset));
+    return { total: entries.length, offset: safeOffset,
+      components: entries.slice(safeOffset, safeOffset + Math.max(1, Math.min(limit, 200))) };
   }
 
-  implementationContext(id?: string, depth = 1, limit = 60) {
+  implementationContext(id?: string, depth = 1, limit = 60, referenceMode: 'http' | 'tool' = 'http') {
     const file = this.requireFile();
     const nodeId = id ?? this.selectedId ?? this.viewingNodeId;
     if (!nodeId) throw new Error('Select a node or provide node_id');
@@ -292,8 +296,12 @@ export class Workspace {
         total: assets.assets.length, resultsTruncated: assets.assets.length > 40,
         images: assets.assets.slice(0, 40).map(asset => ({ ...asset,
           available: file.images.has(asset.hash), bytes: file.images.getMeta(asset.hash)?.uncompressedSize ?? null,
-          url: `/api/assets/${asset.hash}?v=${encodeURIComponent(renderKey)}` })) },
-      visualReferences: { source: 'rendered-from-fig' as const, svgUrl: url('svg'), pngUrl: url('png'),
+          ...(referenceMode === 'http'
+            ? { url: `/api/assets/${asset.hash}?v=${encodeURIComponent(renderKey)}` }
+            : { assetTool: { name: 'get_image_asset', hash: asset.hash } }) })) },
+      visualReferences: { source: 'rendered-from-fig' as const,
+        ...(referenceMode === 'http' ? { svgUrl: url('svg'), pngUrl: url('png') }
+          : { renderTool: { name: 'render_node', node_id: nodeId, include_svg: true } }),
         imageTool: { name: 'get_node_image', node_id: nodeId } },
       note: 'Constraints and auto layout appear only when declared in the file. This context does not suggest breakpoints or generate responsive code.',
     };

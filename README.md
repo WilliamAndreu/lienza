@@ -102,6 +102,70 @@ Opening a version analyzes visible layers and generates a **Theme** page that is
 
 The MCP `get_theme` tool accepts `section` (`all`, `colors`, `typography`, `radii`, `borders`, `shadows`, `spacing`, or `css`) and `limit`. In `typography.fonts`, `declaredFamily` is the family found in the `.fig`; `renderedFamily` is the configured preview substitute. Use the declared family when implementing the design. `get_node_context` makes the same distinction for individual nodes. Check geometrically inferred values before adopting them as official design tokens.
 
+## Command line
+
+`apps/cli` answers the same queries as the MCP server without the viewer or HTTP server. It works as an interactive program or as one command per call.
+
+### Interactive session
+
+```bash
+npm run lienza -- design.fig
+```
+
+The file is parsed once and stays loaded. The session keeps a current node, like a working directory, and shows it in the prompt. It starts at the document, whose children are the pages. Typing a number or `..` on its own moves, and entering a node lists its first children:
+
+```text
+design.fig ❯ 3
+CANVAS DEV 5 layers
+    1  FRAME     Dashboard/LABERITApps                1080×1920   8 layers
+    …
+DEV ❯ 1
+DEV › Dashboard/LABERITApps ❯ context
+DEV › Dashboard/LABERITApps ❯ preview
+DEV › Dashboard/LABERITApps ❯ copy
+✔ Copied context of Dashboard/LABERITApps (14 KB)
+DEV › Dashboard/LABERITApps ❯ cd Clientes
+No child "Clientes" here; 15 layers elsewhere match. Type a number to go:
+```
+
+- **Navigate**: `pages`, `ls`, `cd <name | number | id | .. | / | ->`, `pwd`, `tree`, `search`, `components`; `back`, `up`, and `top` as shortcuts. Numbers refer to the last `search`, `pages`, or `components` list, or else to the children `ls` shows. A name `cd` cannot find among the children is looked up in the whole file.
+- **Inspect**: `info`, `context`, `theme [section] [limit]`, `file`, and `preview [target]`, which renders the current node, or a target such as `preview 1`, to a temporary PNG and opens it in the system image viewer. Normal frames render at up to three times their design size, bounded by 6000 px on the longest side and 24 megapixels; small nodes such as icons grow to about 800 px. `--scale` sets a specific size, subject to the 50 megapixel safety limit. A page renders the area that holds all its layers, so when they are far apart `preview` points to the largest one. Output is a readable summary; `json on` prints the same JSON as the one-shot commands.
+- **Take it with you**: `copy [context|info|css|svg|id|path]` puts it on the clipboard, ready to paste into an agent. `render [png|svg]`, `asset <hash>`, and `export <dir> [--png]` write files to `./lienza-out/` unless you pass `--out`; `view` opens the last one with the system viewer.
+- **Session**: `open <file | number>`, `recent`, `help [command]` with examples, and a suggestion when a command is mistyped. Tab completes commands, child names, sections, and paths; ↑ recalls history; Ctrl-C clears the line; `exit` or Ctrl-D leaves.
+
+The first launch shows a short guide under the logo. Later launches without a file list recent files. History, recent files, and that first-run mark live in `~/.lienza/` (`LIENZA_HOME` moves them).
+
+PNGs, including `preview`, are rasterized in a child process, so a renderer crash on one node reports an error and the session continues. Without a terminal, the session reads commands from standard input, without colors, history, or recent files: `printf 'pages\nexit\n' | npm run -s lienza -- design.fig`.
+
+### One-shot commands
+
+Each command opens the `.fig` passed as an argument, prints JSON to stdout, and writes errors to stderr with exit code 1. After `npm run build`:
+
+```bash
+npm run lienza -- status design.fig
+npm run lienza -- layers design.fig --id 12:34 --depth 2
+npm run lienza -- search design.fig button
+npm run lienza -- context design.fig --id 12:34
+npm run lienza -- theme design.fig --section colors
+npm run lienza -- render design.fig --id 12:34 --format png --out frame.png
+npm run lienza -- export design.fig --out design-export --png
+```
+
+`npm run lienza -- --help` lists every command and option. Without a server, the `/api/...` URLs in `context` become `lienza render` and `lienza asset` commands.
+
+Rasterizing a PNG uses memory per output pixel, regardless of how simple the design is: a full page can need gigabytes. By default `render --format png` fits the image within 1600 px without enlarging it. Use `--max-width` and `--max-height` for a different bound, or `--scale 2` for a sharper frame. A PNG over 50 megapixels is refused before rasterizing, with an estimate of the memory it would need; render a frame instead of the page, use SVG, or pass `--allow-large` to render it anyway.
+
+`export` writes `manifest.json`, `theme.json`, `components.json`, a layer tree per page in `pages/`, implementation context for each top-level frame in `frames/`, SVG (and with `--png`, PNG) renders in `renders/`, and every embedded image in `assets/`. References in the exported context point to those files. Each PNG is rasterized in its own process: if the renderer aborts on a frame, the manifest records `pngError` and the export continues.
+
+`mcp` serves the MCP tools over stdio, with no server or URL to configure:
+
+```bash
+codex mcp add lienza-file -- node /path/to/lienza/apps/cli/dist/main.js mcp /path/to/design.fig
+claude mcp add lienza-file -- node /path/to/lienza/apps/cli/dist/main.js mcp /path/to/design.fig
+```
+
+There is no shared viewer selection in this mode, so pass `node_id` explicitly when you need a specific layer. Stdio MCP returns tool references instead of `/api/...` URLs: use `render_node` with `include_svg`, `get_node_image`, or `get_image_asset` for visual data. The whole `.fig` is parsed into memory, as in the server: each command loads it once, and `mcp` keeps it loaded for the session.
+
 ## Architecture
 
 ```text
@@ -116,6 +180,8 @@ apps/server/src/
   application/    document state and operations
   adapters/in/    MCP and HTTP
   adapters/out/   .fig engine adapter
+
+apps/cli/src/     interactive session, one-shot commands, and MCP over stdio, using the server's Workspace in process
 
 packages/fig-engine/
   parser/         ZIP parsing and lazy images adapted from echobt/figma-mcp
@@ -145,7 +211,7 @@ On a page, the white canvas shows all views and fits them to the viewport. Click
 - `POST /api/selection` with `{ "id": "session:local" }`
 - `POST /api/view` with `{ "id": "session:local" }` to share the open view with MCP
 - `GET /api/nodes/:id/path` for ancestors from the page
-- `GET /api/render/:id.svg`, `/api/render/:id.png`, `/api/hit-areas/:id`
+- `GET /api/render/:id.svg`, `/api/render/:id.png`, `/api/hit-areas/:id`; the PNG always fits within 1600 px, and `maxWidth`/`maxHeight` (100–1600) shrink it further
 - `GET /api/assets/:hash?v=:renderKey` for embedded image bytes
 
 The server listens on `127.0.0.1` only. The Angular development server proxies `/api` and `/mcp`.

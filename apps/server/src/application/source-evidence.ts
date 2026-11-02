@@ -26,7 +26,7 @@ function guidId(value: unknown): string | null {
 }
 
 /** Only report layout values actually encoded in the file. Missing fields are not defaulted. */
-export function layoutEvidence(node: FigNode, raw: Raw | undefined) {
+export function layoutEvidence(node: FigNode, raw: Raw | undefined): Record<string, unknown> {
   const scene = node as SceneNode;
   const stack = fields(raw, [
     'stackMode', 'stackSpacing', 'stackHorizontalPadding', 'stackVerticalPadding',

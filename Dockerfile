@@ -2,6 +2,7 @@ FROM node:24-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/package.json
+COPY apps/cli/package.json apps/cli/package.json
 COPY apps/viewer/package.json apps/viewer/package.json
 COPY packages/fig-engine/package.json packages/fig-engine/package.json
 RUN npm ci --no-audit --no-fund
@@ -14,6 +15,7 @@ FROM node:24-bookworm-slim AS production-dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/package.json
+COPY apps/cli/package.json apps/cli/package.json
 COPY apps/viewer/package.json apps/viewer/package.json
 COPY packages/fig-engine/package.json packages/fig-engine/package.json
 RUN npm ci --omit=dev --no-audit --no-fund
