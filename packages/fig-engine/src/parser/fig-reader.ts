@@ -8,7 +8,9 @@
  * - images/: Directory with image assets (loaded lazily)
  */
 
-import { readFile } from "fs/promises";
+import { open, readFile, type FileHandle } from "fs/promises";
+import { promisify } from "node:util";
+import { inflateRaw as inflateRawZlib } from "node:zlib";
 import { inflateRaw } from "pako";
 import type { FigMeta } from "./types.js";
 
@@ -43,6 +45,59 @@ export interface ImageStore {
 }
 
 const DEFAULT_LRU_MAX = 64;
+const MAX_THUMBNAIL_BYTES = 12_000_000;
+const MAX_CENTRAL_DIRECTORY_BYTES = 8_000_000;
+const inflateThumbnail = promisify(inflateRawZlib);
+
+async function readExact(handle: FileHandle, position: number, length: number): Promise<Buffer> {
+  const data = Buffer.alloc(length);
+  let offset = 0;
+  while (offset < length) {
+    const { bytesRead } = await handle.read(data, offset, length - offset, position + offset);
+    if (!bytesRead) throw new Error('Truncated .fig ZIP archive');
+    offset += bytesRead;
+  }
+  return data;
+}
+
+/** Read only the ZIP index and thumbnail entry, never the full .fig archive. */
+export async function readEmbeddedFigThumbnail(filePath: string): Promise<Uint8Array | undefined> {
+  const handle = await open(filePath, 'r');
+  try {
+    const { size } = await handle.stat();
+    const tailLength = Math.min(size, 65_557);
+    const tail = await readExact(handle, size - tailLength, tailLength);
+    const eocd = findEOCD(tail);
+    if (eocd < 0) throw new Error('Missing .fig ZIP central directory');
+    const directorySize = readUint32LE(tail, eocd + 12);
+    const directoryOffset = readUint32LE(tail, eocd + 16);
+    if (directorySize > MAX_CENTRAL_DIRECTORY_BYTES || directoryOffset + directorySize > size) {
+      throw new Error('.fig ZIP central directory exceeds preview limit');
+    }
+    // parseCentralDirectory expects absolute offsets from the start of a ZIP.
+    // Rebase the EOCD to this small directory buffer instead.
+    const directory = await readExact(handle, directoryOffset, directorySize);
+    const localEocd = Buffer.alloc(22);
+    tail.copy(localEocd, 0, eocd, eocd + 22);
+    localEocd.writeUInt32LE(0, 16);
+    const entries = parseCentralDirectory(Buffer.concat([directory, localEocd]));
+    const entry = entries.find(item => item.filename === 'thumbnail.png');
+    if (!entry) return undefined;
+    if (entry.compressedSize > MAX_THUMBNAIL_BYTES || entry.uncompressedSize > MAX_THUMBNAIL_BYTES) {
+      return undefined;
+    }
+    const header = await readExact(handle, entry.localHeaderOffset, 30);
+    if (readUint32LE(header, 0) !== 0x04034b50) throw new Error('Invalid thumbnail ZIP header');
+    const dataStart = entry.localHeaderOffset + 30 + readUint16LE(header, 26) + readUint16LE(header, 28);
+    if (dataStart + entry.compressedSize > size) throw new Error('Invalid thumbnail ZIP length');
+    const compressed = await readExact(handle, dataStart, entry.compressedSize);
+    if (entry.compressionMethod === 0) return compressed;
+    if (entry.compressionMethod !== 8) return undefined;
+    return await inflateThumbnail(compressed, { maxOutputLength: MAX_THUMBNAIL_BYTES });
+  } finally {
+    await handle.close();
+  }
+}
 
 export class LazyImageStore implements ImageStore {
   private readonly zipData: Uint8Array;

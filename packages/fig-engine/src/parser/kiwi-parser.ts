@@ -537,6 +537,8 @@ function convertToFigNode(raw: unknown): FigNode | null {
     nodeRecord["symbolData"] = {
       symbolID: symbolIdRaw ? parseGUID(symbolIdRaw) : undefined,
       symbolOverrides: symbolData["symbolOverrides"],
+      uniformScaleFactor: typeof symbolData["uniformScaleFactor"] === "number"
+        ? symbolData["uniformScaleFactor"] : undefined,
     };
   }
 

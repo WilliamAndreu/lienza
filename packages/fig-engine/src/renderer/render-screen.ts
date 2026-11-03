@@ -23,6 +23,7 @@ import type {
   GUID,
 } from "../parser/types.js";
 import { formatGUID } from "../parser/kiwi-parser.js";
+import { iconFontFallback } from "./icon-font-fallbacks.js";
 import { extractInstanceContent, resolveInstanceChildren, type ResolvedInstanceContent } from "../parser/instance-resolver.js";
 import type {
   TransformMatrix,
@@ -366,7 +367,32 @@ function renderText(
   const fillColor = paintToColor(getVisiblePaint(fills)) ?? "#000";
 
   const style = node.style as TextStyle | undefined;
+  const applyTextCase = (value: string, start: number, textCase = style?.textCase): string => {
+    switch (textCase) {
+      case "UPPER":
+        return value.toLocaleUpperCase();
+      case "LOWER":
+        return value.toLocaleLowerCase();
+      case "TITLE":
+        return value.replace(/\p{L}+/gu, (word, offset: number) => {
+          const previous = text[start + offset - 1];
+          return previous && /[\p{L}\p{N}]/u.test(previous)
+            ? word
+            : word[0]!.toLocaleUpperCase() + word.slice(1).toLocaleLowerCase();
+        });
+      default:
+        return value;
+    }
+  };
   const fontSize = style?.fontSize ?? 14;
+  const icon = iconFontFallback(style?.fontFamily, text, node.width ?? 0, fontSize);
+  if (icon) {
+    const scaleX = (node.width ?? fontSize) / 24;
+    const scaleY = (node.height ?? fontSize) / 24;
+    const paint = icon.filled ? `fill="${fillColor}"` : `fill="none" stroke="${fillColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+    output.push(`<g transform="${svgMatrix(transform)}" data-font-fallback="${escapeXml(style?.fontFamily ?? '')}" data-source-ligature="${escapeXml(text)}"><g transform="scale(${scaleX} ${scaleY})" ${paint}>${icon.markup}</g></g>`);
+    return true;
+  }
   const fontFamily = escapeXml(style?.fontFamily ?? "Inter");
   const fontWeight = style?.fontWeight ?? 400;
   const fontStyle = style?.fontStyle ?? "normal";
@@ -413,14 +439,15 @@ function renderText(
       fontWeight?: number;
       fontSize?: number;
       letterSpacing?: number;
+      textCase?: TextStyle["textCase"];
     }>;
   } | undefined;
   const styleById = new Map(textData?.styleOverrideTable?.map(item => [item.styleID, item]) ?? []);
   const styleIds = textData?.characterStyleIDs;
 
-  const styledLine = (start: number, end: number, baselineY: number): string => {
+  const styledLine = (start: number, end: number, baselineY: number, suffix = ""): string => {
     if (!styleIds || !styleById.size || start >= end) {
-      return `<tspan x="${baseX}" y="${baselineY}">${escapeXml(text.slice(start, end))}</tspan>`;
+      return `<tspan x="${baseX}" y="${baselineY}">${escapeXml(applyTextCase(text.slice(start, end), start) + suffix)}</tspan>`;
     }
     const parts: string[] = [];
     for (let cursor = start; cursor < end;) {
@@ -442,16 +469,18 @@ function renderText(
       const runSize = override?.fontSize ?? fontSize;
       const runSpacing = override?.letterSpacing ?? letterSpacing;
       const position = cursor === start ? ` x="${baseX}" y="${baselineY}"` : "";
-      parts.push(`<tspan${position} fill="${runFill}" font-family="${escapeXml(runFamily)}" font-weight="${runWeight}" font-size="${runSize}" letter-spacing="${runSpacing}">${escapeXml(text.slice(cursor, next))}</tspan>`);
+      parts.push(`<tspan${position} fill="${runFill}" font-family="${escapeXml(runFamily)}" font-weight="${runWeight}" font-size="${runSize}" letter-spacing="${runSpacing}">${escapeXml(applyTextCase(text.slice(cursor, next), cursor, override?.textCase ?? style?.textCase))}</tspan>`);
       cursor = next;
     }
-    return parts.join("");
+    return parts.join("") + (suffix ? `<tspan>${escapeXml(suffix)}</tspan>` : "");
   };
   let spans: string;
+  const lineLimit = node.maxLines && node.maxLines > 0 ? Math.floor(node.maxLines) : undefined;
 
   if (derivedTextData?.baselines && derivedTextData.baselines.length > 0) {
     // Use baselines for proper text wrapping
-    spans = derivedTextData.baselines
+    const baselines = lineLimit ? derivedTextData.baselines.slice(0, lineLimit) : derivedTextData.baselines;
+    spans = baselines
       .map((baseline, index) => {
         // Extract the substring for this line
         const lineText = text.substring(
@@ -465,17 +494,22 @@ function renderText(
 
         // Figma's derived baseline is an absolute node-local position.
         const baselineY = baseline.position?.y ?? baseline.lineY + baseline.lineAscent;
-        return styledLine(lineStart, lineEnd, baselineY);
+        const truncated = index === baselines.length - 1 && baseline.endCharacter < text.length;
+        return styledLine(lineStart, lineEnd, baselineY,
+          truncated && node.textTruncation === "ENDING" ? "…" : "");
       })
       .join("");
   } else {
     // Fallback: split by newlines (for text with explicit line breaks)
     const lines = text.split(/\r?\n/);
+    const visibleLines = lineLimit ? lines.slice(0, lineLimit) : lines;
     let lineStart = 0;
-    spans = lines
+    spans = visibleLines
       .map((line, index) => {
         const baselineY = fontSize + index * defaultLineHeight;
-        const content = styledLine(lineStart, lineStart + line.length, baselineY);
+        const truncated = index === visibleLines.length - 1 && visibleLines.length < lines.length;
+        const content = styledLine(lineStart, lineStart + line.length, baselineY,
+          truncated && node.textTruncation === "ENDING" ? "…" : "");
         lineStart += line.length + 1;
         return content;
       })
@@ -859,6 +893,10 @@ function renderNode(
 
   if (resolvedChildren && resolvedChildren.length > 0) {
     const children = resolvedChildren;
+    const instanceScale = node.type === "INSTANCE" ? sceneNode.symbolData?.uniformScaleFactor : undefined;
+    const childWorldTransform = instanceScale && Number.isFinite(instanceScale) && instanceScale > 0 && instanceScale !== 1
+      ? multiplyTransforms(worldTransform, { a: instanceScale, b: 0, c: 0, d: instanceScale, e: 0, f: 0 })
+      : worldTransform;
     const childOutput: string[] = [];
     const targetOutput = sceneNode.clipsContent ? childOutput : baseOutput;
 
@@ -871,7 +909,7 @@ function renderNode(
       if (childScene.isMask) {
         const maskId = `mask-${ctx.clipCounter++}`;
         const childTransform = multiplyTransforms(
-          worldTransform,
+          childWorldTransform,
           getLocalTransform(childScene),
         );
 
@@ -898,7 +936,7 @@ function renderNode(
           if (siblingScene.isMask) break;
           renderNode(
             sibling,
-            worldTransform,
+            childWorldTransform,
             depth + 1,
             options,
             images,
@@ -918,7 +956,7 @@ function renderNode(
 
       renderNode(
         child,
-        worldTransform,
+        childWorldTransform,
         depth + 1,
         options,
         images,

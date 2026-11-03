@@ -115,15 +115,7 @@ export class ReaderView implements OnInit, OnDestroy {
     this.tryPendingFocus();
   }
   viewPage(pageId: string) {
-    this.focusedId.set(null);
-    this.mobileDetailStart.set(false);
-    this.pendingFocusId = null;
-    void this.vm.preview(pageId);
-    if (this.renderReady() && this.pageImage?.complete && this.pageImage.naturalWidth) {
-      this.previewWidth.set(this.pageWidth());
-      this.previewHeight.set(this.pageHeight());
-      this.fitPreview();
-    }
+    this.navigateTo(pageId);
   }
   changePage(pageId: string) {
     this.focusedId.set(null);
@@ -131,11 +123,23 @@ export class ReaderView implements OnInit, OnDestroy {
     this.pendingFocusId = null;
     void this.vm.changePage(pageId);
   }
-  navigateTo(id: string) {
+  navigateTo(id: string, preservePendingFocus = false) {
     this.focusedId.set(null);
     this.mobileDetailStart.set(false);
-    this.pendingFocusId = null;
-    void this.vm.preview(id);
+    if (!preservePendingFocus) this.pendingFocusId = null;
+    if (id !== this.vm.activePageId() && id !== this.vm.previewId()) {
+      this.loadedPreviewUrl.set(null);
+      this.previewImage = null;
+    }
+    const preview = this.vm.preview(id);
+    this.restoreLoadedPageSize();
+    return preview;
+  }
+  private restoreLoadedPageSize() {
+    if (!this.vm.showingPage() || !this.renderReady() || !this.pageImage?.complete || !this.pageImage.naturalWidth) return;
+    this.previewWidth.set(this.pageWidth());
+    this.previewHeight.set(this.pageHeight());
+    this.fitPreview();
   }
   resetFocus() {
     this.focusedId.set(null);
@@ -172,7 +176,7 @@ export class ReaderView implements OnInit, OnDestroy {
       const parent = path.at(-2);
       if (!parent) return;
       this.pendingFocusId = id;
-      await this.vm.preview(parent.id);
+      await this.navigateTo(parent.id, true);
       if (this.pendingFocusId && !this.tryPendingFocus()) {
         this.pendingFocusId = null;
         this.vm.error.set(this.language.t('reader.layerNotFound'));
@@ -185,9 +189,7 @@ export class ReaderView implements OnInit, OnDestroy {
   isolateSelected() {
     const id = this.vm.selected()?.id;
     if (!id) return;
-    this.focusedId.set(null);
-    this.pendingFocusId = null;
-    void this.vm.preview(id);
+    void this.navigateTo(id);
   }
   private focusArea(id: string) {
     const area = this.vm.hitAreas().find(candidate => candidate.id === id);

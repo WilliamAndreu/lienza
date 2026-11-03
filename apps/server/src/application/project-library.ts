@@ -16,7 +16,10 @@ export class ProjectLibrary {
   async thumbnail(projectId: string, versionId: string) {
     const path = await this.projects.versionPath(projectId, versionId);
     try { return await this.loader.preview(path) ?? await this.loader.thumbnail(path); }
-    catch { return this.loader.thumbnail(path); }
+    catch {
+      try { return await this.loader.thumbnail(path); }
+      catch { return undefined; }
+    }
   }
 
   async create(name: string, path: string, fileName: string): Promise<DesignProject> {

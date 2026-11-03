@@ -13,5 +13,8 @@ Bundled fonts used to render SVG and PNG previews:
 - Rubik and Montserrat: copied from the user's local design project; original font families by [The Rubik Project](https://github.com/googlefonts/rubik) and [The Montserrat Project](https://github.com/JulietaUla/Montserrat), SIL Open Font License 1.1. Their OFL notices are in `assets/fonts/Rubik/OFL.txt` and `assets/fonts/Montserrat/OFL.txt`.
 - Roboto and Inter: downloaded from the [Google Fonts repository](https://github.com/google/fonts), SIL Open Font License 1.1. Notices are in their respective font folders.
 - Source Sans Pro: downloaded from the [Tor Project's Source Sans Pro font mirror](https://www.torproject.org/static/fonts/SourceSansPro/) with its SIL Open Font License 1.1 notice; original family by [Adobe](https://github.com/adobe-fonts/source-sans).
+- IBM Plex Sans: bundled with its SIL Open Font License 1.1 notice in `assets/fonts/IBMPlexSans/OFL.txt`.
+
+Fallback icon outlines are adapted from [Lucide](https://lucide.dev/) under the ISC license, preserved in `assets/icons/lucide/LICENSE`. The Apple mark is from [Simple Icons](https://simpleicons.org/), with its license and trademark disclaimer preserved in `assets/icons/simple-icons/`.
 
 `Raptor V3 Premium` is a commercial font and is not bundled. Previews use Rubik as a temporary substitute while retaining the original font name in node metadata.

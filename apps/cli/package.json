@@ -1,6 +1,6 @@
 {
   "name": "@figma-reader/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -12,8 +12,8 @@
     "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
-    "@figma-reader/fig-engine": "0.1.0",
-    "@figma-reader/server": "0.1.0",
+    "@figma-reader/fig-engine": "0.2.0",
+    "@figma-reader/server": "0.2.0",
     "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "devDependencies": {

@@ -33,6 +33,7 @@ COPY --from=production-dependencies /app/packages/fig-engine/package.json ./pack
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/packages/fig-engine/dist ./packages/fig-engine/dist
 COPY --from=build /app/packages/fig-engine/assets/fonts ./packages/fig-engine/assets/fonts
+COPY --from=build /app/packages/fig-engine/assets/icons ./packages/fig-engine/assets/icons
 EXPOSE 3210
 CMD ["node", "apps/server/dist/main.js"]
 

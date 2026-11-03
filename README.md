@@ -66,12 +66,12 @@ docker compose -f compose.prebuilt.yaml up -d
 This pulls the latest `server` and `viewer` images for your CPU architecture, including `linux/arm64` on M1 and later Macs and `linux/amd64` on Intel/AMD machines. To use a specific release or different local ports:
 
 ```bash
-LIENZA_VERSION=v0.1.0 VIEWER_PORT=14200 MCP_PORT=13210 docker compose -f compose.prebuilt.yaml up -d
+LIENZA_VERSION=v0.2.0 VIEWER_PORT=14200 MCP_PORT=13210 docker compose -f compose.prebuilt.yaml up -d
 ```
 
 The viewer is at `http://localhost:4200` by default; MCP is at `http://localhost:3210/mcp`. The named volume begins empty and keeps uploaded projects across container updates. Run `docker compose -f compose.prebuilt.yaml pull && docker compose -f compose.prebuilt.yaml up -d` to update to the newest images.
 
-Maintainers publish both images to GHCR by pushing a version tag such as `v0.1.0`. The workflow publishes that tag and `latest` for `linux/amd64` and `linux/arm64`. New GHCR packages may initially be private; set both package visibilities to **Public** in GitHub before offering anonymous pulls.
+Maintainers publish both images to GHCR by pushing a version tag such as `v0.2.0`. The workflow publishes that tag and `latest` for `linux/amd64` and `linux/arm64`. New GHCR packages may initially be private; set both package visibilities to **Public** in GitHub before offering anonymous pulls.
 
 ### Storage and versions
 
@@ -79,7 +79,7 @@ The local npm workflow stores projects in `apps/server/data/projects`. Set `FIGM
 
 “Keep only the latest version” removes older version files. “Delete project” removes all versions and previews. If that project was active, the reader and MCP selection are cleared.
 
-The project library displays the thumbnail embedded in each `.fig` version. Thumbnail requests do not activate another version or change the shared selection. The viewer bundles Source Sans Pro under the [SIL Open Font License](apps/viewer/public/fonts/OFL.txt).
+The project library renders an explicitly named `Cover`, `#cover`, or `Thumbnail` when it fits the preview limits. It falls back to the `.fig` thumbnail if rendering exceeds its time or memory budget, and to a lightweight placeholder when no image is available. Thumbnail requests do not activate another version or change the shared selection. The viewer bundles Source Sans Pro under the [SIL Open Font License](apps/viewer/public/fonts/OFL.txt).
 
 ## Connect an agent
 
@@ -103,6 +103,8 @@ Opening a version analyzes visible layers and generates a **Theme** page that is
 The MCP `get_theme` tool accepts `section` (`all`, `colors`, `typography`, `radii`, `borders`, `shadows`, `spacing`, or `css`) and `limit`. In `typography.fonts`, `declaredFamily` is the family found in the `.fig`; `renderedFamily` is the configured preview substitute. Use the declared family when implementing the design. `get_node_context` makes the same distinction for individual nodes. Check geometrically inferred values before adopting them as official design tokens.
 
 ## Command line
+
+**Experimental:** The CLI, including its stdio MCP mode, is still being validated against real `.fig` files. Use it with care: large documents and PNG exports can consume substantial memory, and rendered images or inferred design data may differ from Figma. Prefer a specific frame over a full page, avoid `--allow-large` unless you have checked the expected output size, and verify the result against the source design before using it for implementation.
 
 `apps/cli` answers the same queries as the MCP server without the viewer or HTTP server. It works as an interactive program or as one command per call.
 

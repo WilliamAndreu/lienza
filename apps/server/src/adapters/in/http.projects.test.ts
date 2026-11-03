@@ -10,6 +10,17 @@ import { LocalProjectRepository } from '../out/local-project-repository.js';
 import { openFigLoader } from '../out/openfig-loader.js';
 import { registerHttpRoutes } from './http.js';
 
+test('API: serves a lightweight placeholder when no real cover or thumbnail exists', async () => {
+  const app = Fastify();
+  try {
+    await registerHttpRoutes(app, {} as Workspace, { thumbnail: async () => undefined } as unknown as ProjectLibrary);
+    const response = await app.inject('/api/projects/example/versions/one/thumbnail');
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers['content-type'] as string, /^image\/svg\+xml/);
+    assert.match(response.body, /viewBox="0 0 960 480"/);
+  } finally { await app.close(); }
+});
+
 test('API: manages versions and deletes an active project', { skip: !process.env.FIGMA_TEST_FILE }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lienza-http-test-'));
   const app = Fastify();
@@ -46,7 +57,7 @@ test('API: manages versions and deletes an active project', { skip: !process.env
     if (embedded && Buffer.from(embedded).readUInt32BE(16) === 400 && Buffer.from(embedded).readUInt32BE(20) === 284) {
       assert.equal(thumbnail.rawPayload.readUInt32BE(16), 1800);
       assert.equal(thumbnail.rawPayload.readUInt32BE(20), 1280);
-      assert.deepEqual(await readFile(join(directory, projectId, `${latestId}.fig.preview-v1.png`)), thumbnail.rawPayload);
+      assert.deepEqual(await readFile(join(directory, projectId, `${latestId}.fig.preview-v4.png`)), thumbnail.rawPayload);
     }
 
     const opened = await app.inject({ method: 'POST', url: `/api/projects/${projectId}/versions/${firstId}/open` });

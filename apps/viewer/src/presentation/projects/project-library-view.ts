@@ -108,7 +108,7 @@ export class ProjectLibraryView implements OnInit {
 
   formatSize(bytes: number) { return this.language.formatSize(bytes); }
   thumbnailUrl(project: DesignProject, version: DesignVersion) {
-    return `/api/projects/${encodeURIComponent(project.id)}/versions/${encodeURIComponent(version.id)}/thumbnail?preview=v1`;
+    return `/api/projects/${encodeURIComponent(project.id)}/versions/${encodeURIComponent(version.id)}/thumbnail?preview=v4`;
   }
   isActive(projectId: string, versionId: string) {
     return this.catalog()?.activeProjectId === projectId && this.catalog()?.activeVersionId === versionId;

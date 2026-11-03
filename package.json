@@ -1,5 +1,6 @@
 {
   "name": "figma-reader-mvp",
+  "version": "0.2.0",
   "description": "Explore local Figma .fig files, inspect layers and design tokens, and share precise context with AI agents through MCP.",
   "private": true,
   "workspaces": ["apps/*", "packages/*"],

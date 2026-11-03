@@ -332,6 +332,8 @@ export interface SceneNode extends BaseNode {
   characters?: string;
   style?: TextStyle;
   derivedTextData?: DerivedTextData;
+  maxLines?: number;
+  textTruncation?: string;
 
   // Component properties
   componentId?: GUID;
@@ -342,6 +344,7 @@ export interface SceneNode extends BaseNode {
   symbolData?: {
     symbolID?: GUID;
     symbolOverrides?: unknown[];
+    uniformScaleFactor?: number;
   };
 
   // Vector properties

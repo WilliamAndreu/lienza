@@ -26,6 +26,7 @@
 .reader-shell .panel-left > div:last-child, .reader-shell .panel-right > div:last-child { border-color: var(--fig-hairline); color: var(--fig-muted); }
 .reader-shell .panel-left .min-h-0.flex-1 { padding-top: .3rem; }
 .canvas-viewport { touch-action: none; overscroll-behavior: contain; user-select: none; }
+.canvas-panel { container-type: inline-size; }
 .canvas-viewport.can-pan { cursor: grab; }
 .canvas-viewport.is-panning { cursor: grabbing; }
 .canvas-toolbar .canvas-label, .canvas-toolbar .zoom-tools, .canvas-toolbar .reader-path { border: 1px solid var(--fig-hairline); background: #fff; box-shadow: 0 2px 10px rgb(22 24 26 / 5%); backdrop-filter: none; }
@@ -35,6 +36,10 @@
 .zoom-tools button:hover { background: var(--fig-accent); }
 .zoom-tools button:nth-child(2) { min-width: 52px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 .canvas-toolbar button[class*='rounded-xl'] { border: 1px solid var(--fig-hairline); background: #fff; color: var(--fig-ink); box-shadow: none; }
+@container (min-width: 800px) {
+  .canvas-toolbar .canvas-label { max-width: 216px; }
+  .canvas-toolbar .canvas-context-actions { position: absolute; top: 0; right: 136px; left: 236px; min-height: 36px; }
+}
 .canvas-hint { border-color: var(--fig-hairline); background: var(--fig-warm); color: var(--fig-muted); box-shadow: 0 2px 10px rgb(22 24 26 / 5%); }
 .canvas-hint > span { border-radius: 0; }
 .hit-area { border: 1px solid transparent; background: transparent; }

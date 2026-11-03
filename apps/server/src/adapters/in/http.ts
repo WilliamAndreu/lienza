@@ -10,6 +10,16 @@ import type { Workspace } from '../../application/workspace.js';
 import type { ProjectLibrary } from '../../application/project-library.js';
 import { handleMcpRequest } from './mcp.js';
 
+const PROJECT_PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="960" height="480">
+  <rect width="960" height="480" fill="#eae9ed"/>
+  <path d="M0 120H960M0 240H960M0 360H960M240 0V480M480 0V480M720 0V480" stroke="#d4d1dc" stroke-width="1"/>
+  <rect x="286" y="82" width="388" height="316" rx="8" fill="#f9f9fa" stroke="#33343e" stroke-width="2"/>
+  <rect x="310" y="106" width="340" height="196" rx="3" fill="#dcd9e5"/>
+  <circle cx="480" cy="204" r="48" fill="none" stroke="#65609e" stroke-width="12"/>
+  <path d="m459 204 15 15 29-33" fill="none" stroke="#65609e" stroke-linecap="round" stroke-linejoin="round" stroke-width="11"/>
+  <path d="M310 331h192M310 353h134" stroke="#aca9b8" stroke-linecap="round" stroke-width="11"/>
+</svg>`;
+
 export async function registerHttpRoutes(app: FastifyInstance, workspace: Workspace, library: ProjectLibrary) {
   await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024, files: 1 } });
   const uploadDir = await mkdtemp(join(tmpdir(), 'figma-reader-'));
@@ -34,7 +44,7 @@ export async function registerHttpRoutes(app: FastifyInstance, workspace: Worksp
   app.get('/api/projects/:id/versions/:versionId/thumbnail', async (request, reply) => {
     const { id, versionId } = request.params as { id: string; versionId: string };
     const image = await library.thumbnail(id, versionId);
-    if (!image) return reply.code(404).send({ error: 'No thumbnail available' });
+    if (!image) return reply.type('image/svg+xml').header('Cache-Control', 'private, max-age=31536000, immutable').send(PROJECT_PLACEHOLDER);
     reply.type('image/png').header('Cache-Control', 'private, max-age=31536000, immutable');
     return Buffer.from(image);
   });

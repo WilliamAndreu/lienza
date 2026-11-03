@@ -21,6 +21,8 @@ const faces: FontFace[] = [
   { family: 'Source Sans Pro', weight: 400, file: 'SourceSansPro/SourceSansPro-Regular.ttf' },
   { family: 'Source Sans Pro', weight: 600, file: 'SourceSansPro/SourceSansPro-SemiBold.ttf' },
   { family: 'Inter', weight: 'variable', file: 'Inter/Inter-Variable.ttf' },
+  { family: 'IBM Plex Sans', weight: 400, file: 'IBMPlexSans/IBMPlexSans-Regular.ttf' },
+  { family: 'IBM Plex Sans', weight: 700, file: 'IBMPlexSans/IBMPlexSans-Bold.ttf' },
 ];
 
 const embeddedCache = new Map<string, string>();

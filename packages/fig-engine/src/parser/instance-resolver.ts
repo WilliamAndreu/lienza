@@ -66,6 +66,8 @@ type OverrideData = {
   textAlignHorizontal?: string;
   lineHeight?: { value?: number };
   textAutoResize?: string;
+  maxLines?: number;
+  textTruncation?: string;
   size?: { x: number; y: number };
   derivedTextData?: unknown;
   fillGeometry?: unknown;
@@ -110,6 +112,25 @@ function parseGUID(value: unknown): GUID | undefined {
   const localID = guid.localID;
   if (typeof sessionID !== "number" || typeof localID !== "number") return undefined;
   return { sessionID, localID };
+}
+
+type ComponentAssignment = { defId: string; characters?: string; visible?: boolean; symbolId?: GUID };
+
+function parseComponentAssignment(value: unknown): ComponentAssignment | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const assignment = value as Record<string, unknown>;
+  const def = parseGUID(assignment.defID);
+  if (!def) return undefined;
+  // Newer .fig files put the effective value in varValue; older files use value.
+  const variable = assignment.varValue as Record<string, unknown> | undefined;
+  const data = (variable?.value ?? assignment.value) as Record<string, unknown> | undefined;
+  const textData = (data?.textDataValue ?? data?.textValue) as Record<string, unknown> | undefined;
+  return {
+    defId: formatGUID(def),
+    characters: typeof textData?.characters === "string" ? textData.characters : undefined,
+    visible: typeof data?.boolValue === "boolean" ? data.boolValue : undefined,
+    symbolId: parseGUID((data?.symbolIdValue as Record<string, unknown> | undefined)?.guid ?? data?.guidValue),
+  };
 }
 
 function buildOverridePathMap(
@@ -194,8 +215,14 @@ function buildOverrideData(
 
     const entry = upsert(path);
 
-    if (typeof o.characters === "string") {
+    const textData = o.textData as Record<string, unknown> | undefined;
+    if (typeof textData?.characters === "string") {
+      entry.characters = textData.characters;
+    } else if (typeof o.characters === "string") {
       entry.characters = o.characters;
+    }
+    if (typeof o.visible === "boolean") {
+      entry.visible = o.visible;
     }
     if (Array.isArray(o.fillPaints)) {
       entry.fillPaints = o.fillPaints;
@@ -212,6 +239,8 @@ function buildOverrideData(
     if (Array.isArray(o.strokePaints)) {
       entry.strokePaints = o.strokePaints;
     }
+    const overriddenSymbolId = parseGUID(o.overriddenSymbolID);
+    if (overriddenSymbolId) entry.overrideSymbolId = overriddenSymbolId;
     if (typeof o.cornerRadius === "number") {
       entry.cornerRadius = o.cornerRadius;
     }
@@ -238,6 +267,8 @@ function buildOverrideData(
     if (typeof o.textAutoResize === "string") {
       entry.textAutoResize = o.textAutoResize;
     }
+    if (typeof o.maxLines === "number") entry.maxLines = o.maxLines;
+    if (typeof o.textTruncation === "string") entry.textTruncation = o.textTruncation;
     if (o.size && typeof o.size === "object") {
       const size = o.size as Record<string, number>;
       entry.size = { x: size.x ?? 0, y: size.y ?? 0 };
@@ -247,23 +278,16 @@ function buildOverrideData(
     if (propAssignments) {
       for (const assign of propAssignments) {
         if (!assign || typeof assign !== "object") continue;
-        const a = assign as Record<string, unknown>;
-        const value = a.value as Record<string, unknown> | undefined;
-        const textValue = value?.textValue as Record<string, unknown> | undefined;
-        const characters = textValue?.characters as string | undefined;
-        const boolValue = value?.boolValue as boolean | undefined;
-        const guidValue = parseGUID(value?.guidValue);
-        const def = a.defID as Record<string, number> | undefined;
-        if (def) {
+        const assignment = parseComponentAssignment(assign);
+        if (assignment) {
           if (!entry.componentPropAssignments) entry.componentPropAssignments = [];
-          entry.componentPropAssignments.push({
-            defId: `${def.sessionID}:${def.localID}`,
-            characters: characters,
-            visible: typeof boolValue === "boolean" ? boolValue : undefined,
-            symbolId: guidValue,
-          });
-        } else if (characters) {
-          entry.characters = characters;
+          entry.componentPropAssignments.push(assignment);
+        } else {
+          const raw = assign as Record<string, unknown>;
+          const variable = raw.varValue as Record<string, unknown> | undefined;
+          const data = (variable?.value ?? raw.value) as Record<string, unknown> | undefined;
+          const text = (data?.textDataValue ?? data?.textValue) as Record<string, unknown> | undefined;
+          if (typeof text?.characters === "string") entry.characters = text.characters;
         }
       }
     }
@@ -276,20 +300,29 @@ function buildOverrideData(
     if (!path) continue;
 
     const entry = upsert(path);
-    if (d.size && typeof d.size === "object") {
+    const pathIds = path.split(">");
+    const scaledInstance = [formatGUID(instance.guid), ...pathIds].some(id => {
+      const symbol = rawNodeIndex.get(id)?.symbolData as Record<string, unknown> | undefined;
+      const scale = symbol?.uniformScaleFactor;
+      return typeof scale === "number" && scale > 0 && scale !== 1;
+    });
+    const source = rawNodeIndex.get(pathIds[pathIds.length - 1]!);
+    if (d.size && typeof d.size === "object" && !(scaledInstance && source?.size)) {
       const size = d.size as Record<string, number>;
       entry.size = { x: size.x ?? 0, y: size.y ?? 0 };
     }
-    if (d.derivedTextData) {
+    if (d.derivedTextData && !(scaledInstance && source?.derivedTextData)) {
       entry.derivedTextData = d.derivedTextData;
     }
-    if (d.fillGeometry) {
+    // Derived paths inside scaled instances have already been shrunk by Figma.
+    // Use the authored path with the instance transform to avoid scaling twice.
+    if (d.fillGeometry && !(scaledInstance && Array.isArray(source?.fillGeometry) && source.fillGeometry.length > 0)) {
       entry.fillGeometry = d.fillGeometry;
     }
-    if (d.strokeGeometry) {
+    if (d.strokeGeometry && !(scaledInstance && Array.isArray(source?.strokeGeometry) && source.strokeGeometry.length > 0)) {
       entry.strokeGeometry = d.strokeGeometry;
     }
-    if (d.transform && typeof d.transform === "object") {
+    if (d.transform && typeof d.transform === "object" && !(scaledInstance && source?.transform)) {
       const t = d.transform as Record<string, number>;
       entry.transform = {
         m00: t.m00 ?? 1,
@@ -306,7 +339,7 @@ function buildOverrideData(
 }
 
 function applyOverrideToNode(node: SceneNode, override: OverrideData): void {
-  if (override.characters) {
+  if (override.characters !== undefined) {
     node.characters = override.characters;
   }
   if (override.fillPaints) {
@@ -345,9 +378,12 @@ function applyOverrideToNode(node: SceneNode, override: OverrideData): void {
   if (override.visible !== undefined) {
     node.visible = override.visible;
   }
+  if (override.maxLines !== undefined) node.maxLines = override.maxLines;
+  if (override.textTruncation !== undefined) node.textTruncation = override.textTruncation;
   if (override.overrideSymbolId) {
-    if (!node.symbolData) node.symbolData = {};
-    node.symbolData.symbolID = override.overrideSymbolId;
+    // The clone initially shares symbolData with its source node. Replacing a
+    // variant must not change that source for subsequent page renders.
+    node.symbolData = { ...node.symbolData, symbolID: override.overrideSymbolId };
     node.children = undefined;
   }
 
@@ -393,11 +429,19 @@ function applyComponentPropAssignments(
   nodeIndex: Map<string, FigNode>,
   rawNodeIndex: Map<string, Record<string, unknown>>,
   overrideByNodeId: Map<string, OverrideData>,
+  selectedSymbolId?: GUID,
 ): void {
   const instanceNode = nodeIndex.get(instanceNodeId) as SceneNode | undefined;
   if (!instanceNode?.symbolData?.symbolID) return;
 
-  const symbolId = formatGUID(instanceNode.symbolData.symbolID as GUID);
+  // A parent instance may swap this nested instance to another component
+  // variant. Its property IDs then refer to the chosen variant, not the
+  // nested instance's original symbol.
+  const symbolId = formatGUID(
+    selectedSymbolId
+      ?? overrideByNodeId.get(instanceNodeId)?.overrideSymbolId
+      ?? instanceNode.symbolData.symbolID as GUID,
+  );
   const symbolNode = nodeIndex.get(symbolId);
   if (!symbolNode) return;
 
@@ -409,6 +453,7 @@ function applyComponentPropAssignments(
       symbolId: assign.symbolId,
     });
   }
+  const referencedDefs = new Set<string>();
 
   const walk = (node: FigNode): void => {
     const nodeId = formatGUID(node.guid);
@@ -421,8 +466,9 @@ function applyComponentPropAssignments(
         const defId = `${def.sessionID}:${def.localID}`;
         const assignment = byDefId.get(defId);
         if (assignment) {
+          referencedDefs.add(defId);
           const existing = overrideByNodeId.get(nodeId) ?? {};
-          if (ref.componentPropNodeField === "TEXT_DATA" && assignment.characters) {
+          if (ref.componentPropNodeField === "TEXT_DATA" && assignment.characters !== undefined) {
             overrideByNodeId.set(nodeId, { ...existing, characters: assignment.characters });
           } else if (ref.componentPropNodeField === "VISIBLE" && assignment.visible !== undefined) {
             overrideByNodeId.set(nodeId, { ...existing, visible: assignment.visible });
@@ -440,12 +486,48 @@ function applyComponentPropAssignments(
   };
 
   walk(symbolNode);
+
+  // Some exported components declare a text property and its default value
+  // but omit componentPropRefs on the text layer. Match the original text only
+  // when it identifies a single descendant in that component definition.
+  const definitions = (rawNodeIndex.get(symbolId)?.componentPropDefs as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const [defId, assignment] of byDefId) {
+    if (assignment.characters === undefined || referencedDefs.has(defId)) continue;
+    const definition = definitions.find(def => {
+      const id = parseGUID(def.id);
+      return id && formatGUID(id) === defId;
+    });
+    if (!definition) continue;
+    const value = (definition.varValue as Record<string, unknown> | undefined)?.value as Record<string, unknown> | undefined;
+    const initial = definition.initialValue as Record<string, unknown> | undefined;
+    const original = ((value?.textDataValue ?? initial?.textValue) as Record<string, unknown> | undefined)?.characters;
+    const texts: FigNode[] = [];
+    const collect = (node: FigNode): void => {
+      if (node.type === "TEXT") texts.push(node);
+      for (const child of node.children ?? []) collect(child as FigNode);
+    };
+    collect(symbolNode);
+    const defaultMatches = typeof original === "string" && original.length > 0
+      ? texts.filter(node => (node as SceneNode).characters === original) : [];
+    // In some component sets the variant's property def has only a parent ID.
+    // Its text layer still retains the originating session ID. Use that link
+    // only when it identifies exactly one text layer in this symbol.
+    const defGuid = parseGUID(definition.id);
+    const sessionMatches = defGuid
+      ? texts.filter(node => node.guid.sessionID === defGuid.sessionID) : [];
+    const match = defaultMatches.length === 1 ? defaultMatches[0]
+      : sessionMatches.length === 1 ? sessionMatches[0] : undefined;
+    if (!match) continue;
+    const nodeId = formatGUID(match.guid);
+    overrideByNodeId.set(nodeId, { ...overrideByNodeId.get(nodeId), characters: assignment.characters });
+  }
 }
 
 function cloneWithOverrides(
   node: FigNode,
   overrideByNodeId: Map<string, OverrideData>,
   nodeIndex: Map<string, FigNode>,
+  rawNodeIndex: Map<string, Record<string, unknown>>,
   symbolStack: Set<string>,
 ): FigNode {
   const nodeId = formatGUID(node.guid);
@@ -466,19 +548,142 @@ function cloneWithOverrides(
     if (symbolNode?.children && !symbolStack.has(symbolId)) {
       symbolStack.add(symbolId);
       expandedSymbolId = symbolId;
-      children = symbolNode.children as FigNode[];
+      // A nested instance carries its own text, visibility and variant
+      // assignments. Resolve them before applying overrides from its parent.
+      children = resolveInstanceChildren(
+        clone, symbolNode, rawNodeIndex, nodeIndex, symbolStack,
+        override?.componentPropAssignments,
+      )
+        ?? symbolNode.children as FigNode[];
     }
   }
 
   if (children && children.length > 0) {
     clone.children = children.map(child =>
-      cloneWithOverrides(child as FigNode, overrideByNodeId, nodeIndex, symbolStack)
+      cloneWithOverrides(child as FigNode, overrideByNodeId, nodeIndex, rawNodeIndex, symbolStack)
     );
   }
   if (expandedSymbolId) {
     symbolStack.delete(expandedSymbolId);
   }
   return clone;
+}
+
+type PropertyDefinition = { name?: string; parentId?: string };
+const propertyDefinitionCache = new WeakMap<Map<string, Record<string, unknown>>, Map<string, PropertyDefinition>>();
+
+function propertyDefinitions(rawNodeIndex: Map<string, Record<string, unknown>>): Map<string, PropertyDefinition> {
+  const cached = propertyDefinitionCache.get(rawNodeIndex);
+  if (cached) return cached;
+  const definitions = new Map<string, PropertyDefinition>();
+  for (const raw of rawNodeIndex.values()) {
+    for (const entry of (raw.componentPropDefs as unknown[] | undefined) ?? []) {
+      const def = entry as Record<string, unknown>;
+      const id = parseGUID(def.id);
+      if (!id) continue;
+      const parent = parseGUID(def.parentPropDefId);
+      definitions.set(formatGUID(id), {
+        name: typeof def.name === "string" ? def.name : undefined,
+        parentId: parent ? formatGUID(parent) : undefined,
+      });
+    }
+  }
+  propertyDefinitionCache.set(rawNodeIndex, definitions);
+  return definitions;
+}
+
+function propertyName(defId: string, definitions: Map<string, PropertyDefinition>): string | undefined {
+  const seen = new Set<string>();
+  let current: string | undefined = defId;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const definition: PropertyDefinition | undefined = definitions.get(current);
+    if (definition?.name) return definition.name;
+    current = definition?.parentId;
+  }
+  return undefined;
+}
+
+function normalizePropertyLabel(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function hidesNamedPart(node: FigNode, target: string): boolean {
+  const name = normalizePropertyLabel(node.name ?? "");
+  if (name && (name === target || name.includes(target) || (name.length >= 4 && target.includes(name)))) return true;
+  if (node.type === "TEXT") {
+    const text = normalizePropertyLabel((node as SceneNode).characters ?? "");
+    return !!text && (text === target || text.startsWith(`${target} `) || (target.length >= 5 && text.startsWith(target)));
+  }
+  if (node.type === "INSTANCE") {
+    const walk = (child: FigNode): boolean => {
+      if (child.type === "TEXT") {
+        const text = normalizePropertyLabel((child as SceneNode).characters ?? "");
+        if (text === target || text.startsWith(`${target} `) || (target.length >= 5 && text.startsWith(target))) return true;
+      }
+      return (child.children ?? []).some(grandchild => walk(grandchild as FigNode));
+    };
+    return (node.children ?? []).some(child => walk(child as FigNode));
+  }
+  return false;
+}
+
+/** Resolve properties whose exported component definition omits node refs. */
+function applyUnboundProperties(
+  symbol: FigNode,
+  assignments: ComponentAssignment[],
+  rawNodeIndex: Map<string, Record<string, unknown>>,
+  nodeIndex: Map<string, FigNode>,
+): void {
+  if (!assignments.length) return;
+  const definitions = propertyDefinitions(rawNodeIndex);
+  for (const assignment of assignments) {
+    if (assignment.visible === undefined && !assignment.symbolId) continue;
+    const name = propertyName(assignment.defId, definitions);
+    if (!name) continue;
+    const target = normalizePropertyLabel(name).replace(/^show /, "");
+    if (target.length < 3) continue;
+    if (assignment.visible === false) {
+      const hide = (node: FigNode): void => {
+        if ((node.type === "INSTANCE" || node.type === "TEXT") && hidesNamedPart(node, target)) {
+          node.visible = false;
+          return;
+        }
+        for (const child of node.children ?? []) hide(child as FigNode);
+      };
+      for (const child of symbol.children ?? []) hide(child as FigNode);
+    }
+    if (assignment.visible === true) {
+      const compactTarget = target.replace(/\s+/g, "");
+      const show = (node: FigNode): void => {
+        if (node.type === "INSTANCE"
+          && normalizePropertyLabel(node.name ?? "").replace(/\s+/g, "") === compactTarget) {
+          node.visible = true;
+          return;
+        }
+        for (const child of node.children ?? []) show(child as FigNode);
+      };
+      for (const child of symbol.children ?? []) show(child as FigNode);
+    }
+    if (assignment.symbolId) {
+      const matches: FigNode[] = [];
+      const collect = (node: FigNode): void => {
+        if (node.type === "INSTANCE" && normalizePropertyLabel(node.name ?? "") === target) {
+          matches.push(node);
+          return;
+        }
+        for (const child of node.children ?? []) collect(child as FigNode);
+      };
+      for (const child of symbol.children ?? []) collect(child as FigNode);
+      if (matches.length !== 1) continue;
+      const targetNode = matches[0] as SceneNode;
+      const chosen = nodeIndex.get(formatGUID(assignment.symbolId));
+      if (!chosen) continue;
+      targetNode.symbolData = { ...targetNode.symbolData, symbolID: assignment.symbolId };
+      targetNode.children = resolveInstanceChildren(targetNode, chosen, rawNodeIndex, nodeIndex) ?? [];
+    }
+  }
 }
 
 /**
@@ -489,6 +694,8 @@ export function resolveInstanceChildren(
   symbolNode: FigNode,
   rawNodeIndex: Map<string, Record<string, unknown>>,
   nodeIndex: Map<string, FigNode>,
+  symbolStack = new Set<string>(),
+  inheritedAssignments: ComponentAssignment[] = [],
 ): FigNode[] | null {
   // Prefer raw node for override/path mapping; if missing, still expand from symbol.
   const instanceRaw = rawNodeIndex.get(formatGUID(instance.guid));
@@ -502,55 +709,38 @@ export function resolveInstanceChildren(
   const pathMap = buildOverridePathMap(symbolNode, rawNodeIndex, nodeIndex);
   const overrideByNodeId = new Map<string, OverrideData>();
 
+  const overriddenVariantChild = (path: string): string | undefined => {
+    const separator = path.lastIndexOf(">");
+    if (separator < 0) return undefined;
+    const parentOverride = overrideData.get(path.slice(0, separator));
+    const variantId = parentOverride?.overrideSymbolId;
+    if (!variantId) return undefined;
+    const variant = nodeIndex.get(formatGUID(variantId));
+    const targetId = path.slice(separator + 1);
+    const contains = (node: FigNode): boolean => formatGUID(node.guid) === targetId
+      || (node.children ?? []).some(child => contains(child as FigNode));
+    return variant && contains(variant) ? targetId : undefined;
+  };
+
   for (const [path, data] of overrideData.entries()) {
-    const nodeId = pathMap.get(path);
+    // A variant swap can introduce descendants absent from the base symbol.
+    // Resolve those child overrides against the chosen variant definition.
+    const nodeId = pathMap.get(path) ?? overriddenVariantChild(path);
     if (!nodeId) continue;
     const existing = overrideByNodeId.get(nodeId);
     overrideByNodeId.set(nodeId, existing ? { ...existing, ...data } : data);
   }
 
-  const topLevelAssignmentsRaw = instanceRaw?.componentPropAssignments as unknown[] | undefined;
-  if (topLevelAssignmentsRaw) {
-    const assignments: Array<{ defId: string; characters?: string; visible?: boolean; symbolId?: GUID }> = [];
-    for (const assign of topLevelAssignmentsRaw) {
-      if (!assign || typeof assign !== "object") continue;
-      const a = assign as Record<string, unknown>;
-      const def = a.defID as Record<string, number> | undefined;
-      const value = a.value as Record<string, unknown> | undefined;
-      const textValue = value?.textValue as Record<string, unknown> | undefined;
-      const characters = textValue?.characters as string | undefined;
-      const boolValue = value?.boolValue as boolean | undefined;
-      const guidValue = parseGUID(value?.guidValue);
-      if (def) {
-        assignments.push({
-          defId: `${def.sessionID}:${def.localID}`,
-          characters,
-          visible: typeof boolValue === "boolean" ? boolValue : undefined,
-          symbolId: guidValue,
-        });
-      }
-    }
-    if (assignments.length > 0) {
-      applyComponentPropAssignments(
-        formatGUID(instance.guid),
-        assignments,
-        nodeIndex,
-        rawNodeIndex,
-        overrideByNodeId,
-      );
-    }
-  }
-
-  for (const [nodeId, data] of overrideByNodeId.entries()) {
-    if (data.componentPropAssignments && data.componentPropAssignments.length > 0) {
-      applyComponentPropAssignments(
-        nodeId,
-        data.componentPropAssignments,
-        nodeIndex,
-        rawNodeIndex,
-        overrideByNodeId,
-      );
-    }
+  const assignments = [
+    ...((instanceRaw?.componentPropAssignments as unknown[] | undefined) ?? [])
+      .map(parseComponentAssignment).filter((value): value is ComponentAssignment => !!value),
+    ...inheritedAssignments,
+  ];
+  if (assignments.length > 0) {
+    applyComponentPropAssignments(
+      formatGUID(instance.guid), assignments, nodeIndex, rawNodeIndex,
+      overrideByNodeId, symbolNode.guid,
+    );
   }
 
   // If symbol has no children, nothing to expand
@@ -558,7 +748,14 @@ export function resolveInstanceChildren(
     return null;
   }
 
-  const clonedSymbol = cloneWithOverrides(symbolNode, overrideByNodeId, nodeIndex, new Set<string>());
+  const clonedSymbol = cloneWithOverrides(symbolNode, overrideByNodeId, nodeIndex, rawNodeIndex, symbolStack);
+  applyUnboundProperties(clonedSymbol, assignments, rawNodeIndex, nodeIndex);
+  const applyNestedProperties = (node: FigNode): void => {
+    const assignments = overrideByNodeId.get(formatGUID(node.guid))?.componentPropAssignments;
+    if (assignments?.length) applyUnboundProperties(node, assignments, rawNodeIndex, nodeIndex);
+    for (const child of node.children ?? []) applyNestedProperties(child as FigNode);
+  };
+  for (const child of clonedSymbol.children ?? []) applyNestedProperties(child as FigNode);
   return clonedSymbol.children ? (clonedSymbol.children as FigNode[]) : null;
 }
 

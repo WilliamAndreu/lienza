@@ -59,7 +59,7 @@
             </div>
           </div>
           @if (vm.viewPath().length > 1 || focusedId() || mobileDetailStart()) {
-            <div class="flex min-w-0 items-center gap-2">
+            <div class="canvas-context-actions flex min-w-0 items-center gap-2">
               @if (vm.viewPath().length > 1) {
                 <nav class="reader-path pointer-events-auto flex min-w-0 items-center gap-1 overflow-x-auto rounded-xl border border-[#e9e8ec] bg-white/95 px-2 py-1.5 text-xs shadow-sm backdrop-blur-sm" [attr.aria-label]="'reader.designPath' | translate">
                   @for (layer of vm.viewPath(); track layer.id) {
